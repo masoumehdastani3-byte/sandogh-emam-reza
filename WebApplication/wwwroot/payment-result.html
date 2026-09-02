@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>نتیجه پرداخت | صندوق قرض‌الحسنه امام رضا (ع)</title>
+  <link rel="stylesheet" href="/css/site.css" />
+  <link rel="icon" href="/images/logo.png" />
+</head>
+<body>
+  <div class="page">
+    <div class="site-header">
+      <a class="brand-lockup" href="/">
+        <img src="/images/logo.png" alt="لوگو" />
+        <div class="titles">
+          <strong>صندوق قرض‌الحسنه امام رضا (ع)</strong>
+          <span>نتیجه پرداخت</span>
+        </div>
+      </a>
+    </div>
+    <div class="card">
+      <h2 id="title"><i class="fas fa-receipt icon-green"></i>نتیجه پرداخت</h2>
+      <p id="msg"></p>
+      <a class="btn primary" href="/panel.html"><i class="fas fa-arrow-right"></i>بازگشت به پنل</a>
+    </div>
+  </div>
+  <script>
+    const p = new URLSearchParams(location.search);
+    const ok = p.get('ok') === '1';
+    const title = document.getElementById('title');
+    title.innerHTML = ok
+      ? '<i class="fas fa-check-circle icon-green"></i>پرداخت موفق'
+      : '<i class="fas fa-times-circle" style="color:#b42318"></i>پرداخت ناموفق';
+    document.getElementById('msg').textContent = p.get('msg') || '';
+  </script>
+</body>
+</html>

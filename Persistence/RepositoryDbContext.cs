@@ -1,0 +1,35 @@
+using Domain.Entities;
+using Microsoft.EntityFrameworkCore;
+
+namespace Persistence
+{
+    public partial class RepositoryDbContext : DbContext
+    {
+        public RepositoryDbContext()
+        {
+        }
+
+        public RepositoryDbContext(DbContextOptions<RepositoryDbContext> options)
+            : base(options)
+        {
+        }
+
+        public virtual DbSet<_Enums> _Enums { get; set; }
+        public virtual DbSet<Installment> Installments { get; set; }
+        public virtual DbSet<Loan> Loans { get; set; }
+        public virtual DbSet<Payment> Payments { get; set; }
+        public virtual DbSet<User> Users { get; set; }
+        public virtual DbSet<UserMenu> UserMenu { get; set; }
+        public virtual DbSet<UserSubMenu> UserSubMenu { get; set; }
+        public virtual DbSet<Setting> Settings { get; set; }
+        public virtual DbSet<VisitedHistory> VisitedHistory { get; set; }
+        public virtual DbSet<UserRole> UserRole { get; set; }
+        public virtual DbSet<UserRoleMenuAccess> UserRoleMenuAccess { get; set; }
+        public virtual DbSet<NotificationLog> NotificationLogs { get; set; }
+        public virtual DbSet<FundTransaction> FundTransactions { get; set; }
+        public virtual DbSet<LoginOtp> LoginOtps { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder) =>
+            modelBuilder.ApplyConfigurationsFromAssembly(typeof(RepositoryDbContext).Assembly);
+    }
+}

@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+
+<html lang="fa" dir="rtl">
+
+<head>
+
+  <meta charset="UTF-8" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <title>ورود | صندوق قرض‌الحسنه امام رضا (ع)</title>
+
+  <link rel="stylesheet" href="css/site.css" />
+
+  <link rel="icon" href="images/logo.png" />
+
+</head>
+
+<body class="login-page">
+
+  <div class="login-shell">
+
+    <div class="card login-card">
+
+      <div class="login-brand">
+
+        <img src="images/logo.png" alt="لوگو صندوق" />
+
+        <h1>صندوق قرض‌الحسنه امام رضا (ع)</h1>
+
+        <p>تسهیل امروز، لبخند فردا</p>
+
+      </div>
+
+
+
+      <h2><i class="fas fa-sign-in-alt icon-green"></i>ورود اعضا</h2>
+
+
+
+      <div id="otpStep">
+
+        <label><i class="fas fa-id-badge"></i>کد ملی</label>
+
+        <input id="nationalCode" maxlength="10" placeholder="کد ملی ۱۰ رقمی" autocomplete="username" />
+
+
+
+        <div id="otpBox" style="display:none">
+
+          <label><i class="fas fa-shield-alt"></i>کد یک‌بارمصرف (ارسال‌شده در <span class="bale-inline"><img src="images/bale-logo.svg" alt="" class="bale-logo" />بله</span>)</label>
+
+          <input id="otpCode" maxlength="6" inputmode="numeric" placeholder="۶ رقم" autocomplete="one-time-code" />
+
+          <p class="login-otp-hint" id="otpHint"></p>
+
+        </div>
+
+
+
+        <button type="button" class="btn primary block" id="btnRequestOtp"><i class="fas fa-paper-plane"></i>ارسال کد ورود به بله</button>
+
+        <button type="button" class="btn primary block" id="btnVerifyOtp" style="display:none"><i class="fas fa-sign-in-alt"></i>ورود با کد</button>
+
+        <button type="button" class="btn ghost block" id="btnResendOtp" style="display:none"><i class="fas fa-redo"></i>ارسال مجدد کد</button>
+
+      </div>
+
+
+
+      <div id="passwordStep" style="display:none">
+
+        <label><i class="fas fa-key"></i>رمز عبور</label>
+
+        <input id="password" type="password" placeholder="رمز عبور" autocomplete="current-password" />
+
+        <button type="button" class="btn dark block" id="btnLogin"><i class="fas fa-sign-in-alt"></i>ورود با رمز عبور</button>
+
+      </div>
+
+
+
+      <p class="login-mode-toggle">
+
+        <button type="button" class="link-btn" id="btnToggleMode">ورود با رمز عبور قدیمی</button>
+
+      </p>
+
+
+
+      <div id="baleLinkBox" class="login-bale-box" style="display:none">
+
+        <p id="baleLinkHelp"></p>
+
+        <a id="baleBotLink" class="btn dark compact-btn" target="_blank" rel="noopener"><img src="images/bale-logo.svg" alt="" class="bale-btn-logo" />اتصال به ربات بله</a>
+
+      </div>
+
+
+
+      <div id="adminHint" class="msg" style="display:none;margin-top:.75rem"></div>
+
+      <div id="msg" class="msg"></div>
+
+
+
+      <div class="login-back">
+
+        <a href="index.html"><i class="fas fa-home"></i>صفحه اصلی</a>
+
+        <a href="register.html"><i class="fas fa-user-plus"></i>عضویت</a>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <script src="js/app.js"></script>
+
+  <script>
+
+    GoodLoan.ready(function () {
+
+      const G = GoodLoan;
+
+      let otpRequested = false;
+
+      let usePasswordMode = false;
+
+
+
+      function nationalCodeValue() {
+
+        return G.toEnglishDigits(G.$('nationalCode').value).trim();
+
+      }
+
+
+
+      function afterLogin(user) {
+
+        G.setSession(user);
+
+        const roleId = G.pick(user, 'roleId');
+
+        const roleName = G.pick(user, 'roleName') || G.pick(user.userRole, 'roleName');
+
+        const userStatus = G.pick(user, 'userStatus');
+
+        const ret = new URLSearchParams(location.search).get('return');
+
+        if (ret) location.href = ret;
+
+        else if (G.isManagerRole(roleId, roleName, userStatus)) location.href = 'admin.html';
+
+        else location.href = 'panel.html';
+
+      }
+
+
+
+      function showOtpSent(message) {
+
+        otpRequested = true;
+
+        G.$('otpBox').style.display = 'block';
+
+        G.$('btnRequestOtp').style.display = 'none';
+
+        G.$('btnVerifyOtp').style.display = 'inline-flex';
+
+        G.$('btnResendOtp').style.display = 'inline-flex';
+
+        G.$('otpHint').textContent = message || 'کد ۶ رقمی را از پیام بله وارد کنید. اعتبار: ۵ دقیقه';
+
+        G.$('otpCode').focus();
+
+      }
+
+
+
+      function resetBaleBox() {
+
+        G.$('baleLinkBox').style.display = 'none';
+
+        G.$('baleBotLink').style.display = 'none';
+
+      }
+
+
+
+      if (new URLSearchParams(location.search).get('return') === 'admin.html') {
+
+        const hint = G.$('adminHint');
+
+        hint.style.display = 'block';
+
+        hint.className = 'msg show ok';
+
+        hint.textContent = 'مدیر: می‌توانید با کد بله یا رمز Admin1234 وارد شوید.';
+
+      }
+
+
+
+      G.bindClick('btnToggleMode', function () {
+
+        usePasswordMode = !usePasswordMode;
+
+        G.$('otpStep').style.display = usePasswordMode ? 'none' : 'block';
+
+        G.$('passwordStep').style.display = usePasswordMode ? 'block' : 'none';
+
+        G.$('btnToggleMode').textContent = usePasswordMode ? 'ورود با کد بله' : 'ورود با رمز عبور قدیمی';
+
+        G.showMsg(G.$('msg'), '', false);
+
+        resetBaleBox();
+
+      });
+
+
+
+      async function requestOtp() {
+
+        const btn = G.$('btnRequestOtp');
+
+        const resend = G.$('btnResendOtp');
+
+        btn.disabled = true;
+
+        resend.disabled = true;
+
+        resetBaleBox();
+
+        const { data } = await G.post('/api/user/login/request-otp', { nationalCode: nationalCodeValue() });
+
+        btn.disabled = false;
+
+        resend.disabled = false;
+
+        G.showMsg(G.$('msg'), data.message || 'خطا', data.success);
+
+        if (!data.success) {
+
+          const info = data.data || {};
+
+          if (G.pick(info, 'needBaleStart') && G.pick(info, 'botLink')) {
+
+            G.$('baleLinkBox').style.display = 'block';
+
+            G.$('baleLinkHelp').textContent = data.message;
+
+            G.$('baleBotLink').href = G.pick(info, 'botLink');
+
+            G.$('baleBotLink').style.display = 'inline-flex';
+
+          }
+
+          return;
+
+        }
+
+        showOtpSent(data.message);
+
+      }
+
+
+
+      G.bindClick('btnRequestOtp', requestOtp);
+
+      G.bindClick('btnResendOtp', requestOtp);
+
+
+
+      G.bindClick('btnVerifyOtp', async function () {
+
+        const btn = G.$('btnVerifyOtp');
+
+        btn.disabled = true;
+
+        const { data } = await G.post('/api/user/login/verify-otp', {
+
+          nationalCode: nationalCodeValue(),
+
+          otpCode: G.toEnglishDigits(G.$('otpCode').value).trim()
+
+        });
+
+        btn.disabled = false;
+
+        G.showMsg(G.$('msg'), data.message || 'خطا در ورود', data.success);
+
+        if (!data.success) return;
+
+        afterLogin(data.data);
+
+      });
+
+
+
+      G.bindClick('btnLogin', async function () {
+
+        const btn = G.$('btnLogin');
+
+        btn.disabled = true;
+
+        const { data } = await G.post('/api/user/login', {
+
+          nationalCode: nationalCodeValue(),
+
+          password: G.$('password').value.trim()
+
+        });
+
+        btn.disabled = false;
+
+        G.showMsg(G.$('msg'), data.message || 'خطا در ورود', data.success);
+
+        if (!data.success) return;
+
+        afterLogin(data.data);
+
+      });
+
+
+
+      G.bindFormEnter(['nationalCode'], 'btnRequestOtp');
+
+      G.bindFormEnter(['otpCode'], 'btnVerifyOtp');
+
+      G.bindFormEnter(['password'], 'btnLogin');
+
+    });
+
+  </script>
+
+</body>
+
+</html>
+

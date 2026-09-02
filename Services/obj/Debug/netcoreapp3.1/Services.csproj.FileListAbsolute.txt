@@ -1,0 +1,16 @@
+E:\Project\SandoghEmamReza\GoodLoan\Services\bin\Debug\netcoreapp3.1\Services.deps.json
+E:\Project\SandoghEmamReza\GoodLoan\Services\bin\Debug\netcoreapp3.1\Services.dll
+E:\Project\SandoghEmamReza\GoodLoan\Services\bin\Debug\netcoreapp3.1\Services.pdb
+E:\Project\SandoghEmamReza\GoodLoan\Services\obj\Debug\netcoreapp3.1\Services.csprojAssemblyReference.cache
+E:\Project\SandoghEmamReza\GoodLoan\Services\obj\Debug\netcoreapp3.1\Services.AssemblyInfoInputs.cache
+E:\Project\SandoghEmamReza\GoodLoan\Services\obj\Debug\netcoreapp3.1\Services.AssemblyInfo.cs
+E:\Project\SandoghEmamReza\GoodLoan\Services\obj\Debug\netcoreapp3.1\Services.csproj.CoreCompileInputs.cache
+E:\Project\SandoghEmamReza\GoodLoan\Services\obj\Debug\netcoreapp3.1\Services.dll
+E:\Project\SandoghEmamReza\GoodLoan\Services\obj\Debug\netcoreapp3.1\Services.pdb
+E:\Project\SandoghEmamReza\GoodLoan\Services\bin\Debug\netcoreapp3.1\Domain.dll
+E:\Project\SandoghEmamReza\GoodLoan\Services\bin\Debug\netcoreapp3.1\Services.Abstractions.dll
+E:\Project\SandoghEmamReza\GoodLoan\Services\bin\Debug\netcoreapp3.1\Domain.pdb
+E:\Project\SandoghEmamReza\GoodLoan\Services\bin\Debug\netcoreapp3.1\Services.Abstractions.pdb
+E:\Project\SandoghEmamReza\GoodLoan\Services\obj\Debug\netcoreapp3.1\Services.csproj.CopyComplete
+E:\Project\SandoghEmamReza\GoodLoan\Services\bin\Debug\netcoreapp3.1\Contracts.dll
+E:\Project\SandoghEmamReza\GoodLoan\Services\bin\Debug\netcoreapp3.1\Contracts.pdb

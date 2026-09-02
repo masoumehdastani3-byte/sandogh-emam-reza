@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>پروفایل | صندوق قرض‌الحسنه امام رضا (ع)</title>
+  <link rel="stylesheet" href="css/site.css" />
+  <link rel="icon" href="images/logo.png" />
+</head>
+<body>
+  <div class="page">
+    <div class="site-header">
+      <a class="brand-lockup" href="index.html">
+        <img src="images/logo.png" alt="لوگو" />
+        <div class="titles">
+          <strong>صندوق قرض‌الحسنه امام رضا (ع)</strong>
+          <span>پروفایل کاربر</span>
+        </div>
+      </a>
+      <div class="nav"><a href="panel.html"><i class="fas fa-th-large"></i>پنل</a><a href="index.html"><i class="fas fa-home"></i>خانه</a></div>
+    </div>
+
+    <div class="tab-menu">
+      <button type="button" class="tab-btn" data-tab="tab-profile"><i class="fas fa-id-card"></i>پروفایل</button>
+      <button type="button" class="tab-btn" data-tab="tab-national"><i class="fas fa-address-card"></i>کارت ملی</button>
+    </div>
+
+    <div class="card tab-panel" id="tab-profile">
+      <h2><i class="fas fa-id-card icon-green"></i>فرم پروفایل</h2>
+      <div class="row">
+        <div><label>نام</label><input id="firstName" /></div>
+        <div><label>نام خانوادگی</label><input id="lastName" /></div>
+      </div>
+      <div class="row">
+        <div><label>جنسیت</label><select id="userGender"><option value="2">مرد</option><option value="1">زن</option></select></div>
+        <div><label>تاریخ تولد</label><input id="birthDate_Shamsi" placeholder="1370/01/01" /></div>
+      </div>
+      <div class="row">
+        <div><label>کد پستی</label><input id="postalCode" maxlength="10" /></div>
+        <div><label>ایمیل</label><input id="email" /></div>
+      </div>
+      <label>آدرس</label>
+      <textarea id="address" rows="3"></textarea>
+      <button type="button" class="btn primary block" id="btnSave"><i class="fas fa-save"></i>ذخیره</button>
+      <div id="msg" class="msg"></div>
+    </div>
+
+    <div class="card tab-panel" id="tab-national">
+      <h2><i class="fas fa-address-card icon-green"></i>آپلود کارت ملی</h2>
+      <input type="file" id="nationalFile" accept="image/*" />
+      <button type="button" class="btn dark block" id="btnUpload"><i class="fas fa-cloud-upload-alt"></i>ارسال</button>
+      <div id="uploadMsg" class="msg"></div>
+    </div>
+  </div>
+  <script src="js/app.js"></script>
+  <script>
+    GoodLoan.ready(function () {
+      const G = GoodLoan;
+      const userId = G.getUserId();
+      if (!userId) { location.href = 'login.html?return=profile.html'; return; }
+
+      G.initTabs('tab-profile');
+
+      async function load() {
+        const result = await G.get('/api/user/' + userId);
+        if (!result.res.ok) return;
+        const data = G.payload(result);
+        ['firstName','lastName','postalCode','email','address','birthDate_Shamsi'].forEach(function (k) {
+          if (G.$(k) && G.pick(data, k) != null) G.$(k).value = G.pick(data, k);
+        });
+        if (G.pick(data, 'userGender')) G.$('userGender').value = G.pick(data, 'userGender');
+      }
+
+      G.bindClick('btnSave', async function () {
+        const { data } = await G.put('/api/user/profile', {
+          userId: userId,
+          firstName: G.$('firstName').value,
+          lastName: G.$('lastName').value,
+          postalCode: G.$('postalCode').value,
+          address: G.$('address').value,
+          userGender: Number(G.$('userGender').value),
+          birthDate_Shamsi: G.$('birthDate_Shamsi').value,
+          email: G.$('email').value
+        });
+        G.showMsg(G.$('msg'), data.message || 'خطا', data.success);
+      });
+
+      G.bindClick('btnUpload', async function () {
+        const file = G.$('nationalFile').files[0];
+        if (!file) return G.showMsg(G.$('uploadMsg'), 'فایل انتخاب نشده', false);
+        const fd = new FormData();
+        fd.append('file', file);
+        try {
+          const res = await fetch('/api/upload/national-id/' + userId, { method: 'POST', body: fd });
+          const raw = await res.json();
+          const data = G.normalizeApi(raw, res.ok);
+          G.showMsg(G.$('uploadMsg'), data.message || 'خطا', data.success);
+        } catch (e) {
+          G.showMsg(G.$('uploadMsg'), 'خطا در آپلود — سرور در دسترس نیست', false);
+        }
+      });
+
+      load();
+    });
+  </script>
+</body>
+</html>

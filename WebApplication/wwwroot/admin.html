@@ -1,202 +1,661 @@
 <!DOCTYPE html>
+
 <html lang="fa" dir="rtl">
+
 <head>
+
   <meta charset="UTF-8" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
   <title>پنل مدیران | صندوق قرض‌الحسنه امام رضا (ع)</title>
+
   <link rel="stylesheet" href="css/site.css" />
+
   <link rel="icon" href="images/logo.png" />
+
+  <style>
+
+    .report-block { margin-bottom: 1.25rem; }
+
+    .report-block h3 { margin: 0 0 .65rem; font-size: 1rem; color: var(--brand-charcoal); }
+
+    tr.row-overdue td { background: #fde8e6 !important; color: #9b1c1c; }
+
+    tr.row-due-soon td { background: #fff8e6 !important; color: #9a6700; }
+
+    tr.row-reminder-failed td { background: #fde8e6 !important; }
+
+    tr.row-reminder-sent td { background: #ecfdf3 !important; }
+
+    .last-send-box { background: #f8faf9; border: 1px solid #d8e6df; border-radius: 12px; padding: 1rem; margin-bottom: 1rem; }
+
+    .last-send-box h3 { margin: 0 0 .65rem; font-size: .95rem; }
+
+  </style>
+
 </head>
+
 <body class="admin-page">
+
   <div class="page">
+
     <div class="site-header">
+
       <a class="brand-lockup" href="index.html">
+
         <img src="images/logo.png" alt="لوگو" />
+
         <div class="titles">
+
           <strong>صندوق قرض‌الحسنه امام رضا (ع)</strong>
+
           <span>پنل مدیران</span>
+
         </div>
+
       </a>
+
       <div class="nav">
+
         <a href="index.html"><i class="fas fa-home"></i>خانه</a>
+
         <a href="panel.html"><i class="fas fa-th-large"></i>پنل عضو</a>
+
       </div>
+
     </div>
+
+
 
     <div id="adminNavBar" class="admin-nav-bar no-print"></div>
 
+
+
     <div id="accessDenied" class="card" style="display:none">
+
       <h2><i class="fas fa-lock icon-green"></i>دسترسی مجاز نیست</h2>
+
       <p>این صفحه فقط برای مدیر صندوق است.</p>
+
       <a class="btn primary" href="login.html?return=admin.html">ورود مدیر</a>
+
     </div>
+
+
 
     <div id="adminContent" style="display:none">
+
       <div class="card">
+
         <div class="stats" id="adminStats"></div>
+
       </div>
+
+
 
       <div class="card tab-panel" id="tab-manage">
+
         <h2><i class="fas fa-cogs icon-green"></i>مدیریت صندوق</h2>
+
+        <p class="muted-text" style="margin-top:0">عملیات خودکار صف وام و ارسال یادآور از بخش‌های مربوط در منو انجام می‌شود.</p>
+
         <div class="actions" style="margin-top:1rem">
+
           <button type="button" class="btn primary" id="btnProcess"><i class="fas fa-play"></i>پرداخت خودکار صف</button>
-          <button type="button" class="btn dark" id="btnRemind"><i class="fas fa-bell"></i>یادآور <span class="bale-inline"><img src="images/bale-logo.svg" alt="" class="bale-logo" />بله</span></button>
+
         </div>
-        <hr style="margin:1.25rem 0;border:0;border-top:1px solid var(--line)" />
-        <h3 style="margin:0 0 .75rem"><i class="fas fa-plus-circle icon-green"></i>شارژ صندوق</h3>
-        <label>مبلغ واریز (ریال)</label>
-        <input id="depositAmount" type="text" class="amount-input" inputmode="numeric" placeholder="مثال: 50,000,000" />
-        <label>توضیحات</label>
-        <input id="depositDesc" placeholder="مثلاً واریز نقدی / حمایت خیرین" />
-        <button type="button" class="btn primary block" id="btnDeposit"><i class="fas fa-piggy-bank"></i>ثبت شارژ صندوق</button>
-        <div id="msg" class="msg"></div>
+
+        <div id="manageMsg" class="msg"></div>
+
       </div>
+
+
+
+      <div class="card tab-panel" id="tab-fund-deposit">
+
+        <h2><i class="fas fa-piggy-bank icon-green"></i>شارژ صندوق</h2>
+
+        <p class="muted-text" style="margin-top:0">واریز نقدی یا حمایت خیرین به موجودی صندوق.</p>
+
+        <label>مبلغ واریز (ریال)</label>
+
+        <input id="depositAmount" type="text" class="amount-input" inputmode="numeric" placeholder="مثال: 50,000,000" />
+
+        <label>توضیحات</label>
+
+        <input id="depositDesc" placeholder="مثلاً واریز نقدی / حمایت خیرین" />
+
+        <button type="button" class="btn primary block" id="btnDeposit"><i class="fas fa-piggy-bank"></i>ثبت شارژ صندوق</button>
+
+        <div id="depositMsg" class="msg"></div>
+
+      </div>
+
+
+
+      <div class="card tab-panel" id="tab-reminders">
+
+        <h2><i class="fas fa-bell icon-green"></i>یادآوری‌های ارسالی</h2>
+
+        <p class="muted-text" style="margin-top:0">با زدن دکمه زیر، برای <strong>اقساط عقب‌افتاده</strong> و <strong>سررسید ۳ روز دیگر</strong> (و خیرین) یادآور بله ارسال می‌شود.</p>
+
+        <div class="actions" style="margin-bottom:1rem">
+
+          <button type="button" class="btn dark" id="btnRemind"><i class="fas fa-paper-plane"></i>ارسال یادآور امروز <span class="bale-inline"><img src="images/bale-logo.svg" alt="" class="bale-logo" />بله</span></button>
+
+        </div>
+
+        <div id="lastSendBox" class="last-send-box" style="display:none">
+
+          <h3><i class="fas fa-check-circle icon-green"></i> نتیجه آخرین ارسال</h3>
+
+          <p id="lastSendSummary" class="muted-text" style="margin-top:0"></p>
+
+          <div style="overflow:auto"><table><thead><tr><th>عضو</th><th>نوع</th><th>وضعیت</th><th>پیام</th><th>توضیح</th></tr></thead><tbody id="lastSendBody"></tbody></table></div>
+
+        </div>
+
+        <h3 style="font-size:1rem;margin:1rem 0 .65rem">تاریخچه همه یادآوری‌ها</h3>
+
+        <div style="overflow:auto"><table><thead><tr><th>شناسه</th><th>تاریخ</th><th>عضو</th><th>نوع</th><th>وضعیت</th><th>پیام</th><th>توضیح</th></tr></thead><tbody id="reminderBody"></tbody></table></div>
+
+        <div id="reminderMsg" class="msg"></div>
+
+      </div>
+
+
+
+      <div class="card tab-panel" id="tab-installments-report">
+
+        <h2><i class="fas fa-calendar-exclamation icon-green"></i>گزارش وضعیت اقساط</h2>
+
+        <p class="muted-text" style="margin-top:0">اعضایی که قسط عقب‌افتاده دارند یا سررسید آن‌ها ۳ روز دیگر است.</p>
+
+
+
+        <div class="report-block">
+
+          <h3><i class="fas fa-exclamation-triangle" style="color:#b42318"></i> اقساط عقب‌افتاده (<span id="overdueCount">0</span>)</h3>
+
+          <div style="overflow:auto"><table><thead><tr><th>شناسه قسط</th><th>عضو</th><th>موبایل</th><th>سررسید</th><th>مبلغ</th><th>وضعیت</th></tr></thead><tbody id="overdueBody"></tbody></table></div>
+
+        </div>
+
+
+
+        <div class="report-block">
+
+          <h3><i class="fas fa-hourglass-half" style="color:#9a6700"></i> سررسید ۳ روز دیگر (<span id="dueSoonCount">0</span>)</h3>
+
+          <div style="overflow:auto"><table><thead><tr><th>شناسه قسط</th><th>عضو</th><th>موبایل</th><th>سررسید</th><th>مبلغ</th><th>وضعیت</th></tr></thead><tbody id="dueSoonBody"></tbody></table></div>
+
+        </div>
+
+      </div>
+
+
 
       <div class="card tab-panel" id="tab-queue">
+
         <h2><i class="fas fa-stream icon-green"></i>صف انتظار وام</h2>
+
         <div style="overflow:auto"><table><thead><tr><th>نوبت</th><th>وام</th><th>عضو</th><th>مبلغ</th><th>تاریخ درخواست</th><th>عملیات</th></tr></thead><tbody id="queueBody"></tbody></table></div>
+
       </div>
+
+
 
       <div class="card tab-panel" id="tab-loans">
+
         <h2><i class="fas fa-file-invoice icon-green"></i>همه وام‌ها</h2>
+
         <p>لیست کامل درخواست‌ها و وام‌های پرداخت‌شده با تاریخ درخواست و تاریخ پرداخت.</p>
+
         <div style="overflow:auto"><table><thead><tr><th>شناسه</th><th>عضو</th><th>مبلغ</th><th>تاریخ درخواست</th><th>تاریخ پرداخت</th><th>وضعیت</th><th>نوبت</th></tr></thead><tbody id="allLoansBody"></tbody></table></div>
+
       </div>
+
+
 
       <div class="card tab-panel" id="tab-deposits">
+
         <h2><i class="fas fa-money-check-alt icon-green"></i>واریزی‌های اعضا</h2>
+
         <div style="overflow:auto"><table><thead><tr><th>شناسه</th><th>کاربر</th><th>مبلغ</th><th>نوع</th><th>پیگیری</th><th>تاریخ</th></tr></thead><tbody id="payBody"></tbody></table></div>
+
       </div>
+
+
 
       <div class="card tab-panel" id="tab-ledger">
+
         <h2><i class="fas fa-book icon-green"></i>دفتر گردش صندوق</h2>
+
         <p>هر ردیف یک تراکنش مالی صندوق است؛ موجودی لحظه‌ای در ستون «مانده» ثبت می‌شود.</p>
+
         <div style="overflow:auto"><table><thead><tr><th>شناسه</th><th>تاریخ</th><th>نوع</th><th>مبلغ</th><th>مانده</th><th>توضیح</th></tr></thead><tbody id="ledgerBody"></tbody></table></div>
+
       </div>
+
+
+
+      <div class="card tab-panel" id="tab-settings">
+
+        <h2><i class="fas fa-sliders-h icon-green"></i>تنظیمات</h2>
+
+        <p class="muted-text" style="margin-top:0">آدرس پایه سایت برای لینک‌های ارسالی در بله (پرداخت قسط، کمک خیرین) و callback درگاه پرداخت.</p>
+
+        <label>آدرس سایت (بدون / در انتها)</label>
+
+        <input id="appBaseUrl" type="url" dir="ltr" placeholder="https://goodloan.example.com" />
+
+        <p class="muted-text">مثال لینک قسط: <code id="sampleInstallmentLink" dir="ltr">—</code></p>
+
+        <button type="button" class="btn primary block" id="btnSaveSettings"><i class="fas fa-save"></i>ذخیره تنظیمات</button>
+
+        <div id="settingsMsg" class="msg"></div>
+
+      </div>
+
     </div>
+
   </div>
+
   <script src="js/app.js"></script>
+
   <script>
+
     GoodLoan.ready(async function () {
+
       const G = GoodLoan;
+
       const managerId = await G.requireManager();
+
       if (!managerId) {
+
         G.$('accessDenied').style.display = 'block';
+
         return;
+
       }
+
+
 
       G.$('adminContent').style.display = 'block';
+
       G.renderAdminNav('adminNavBar', { page: 'admin' });
-      G.initTabs('tab-queue');
+
+      G.initTabs('tab-manage');
+
       G.bindAmountInputs('.amount-input');
+
       G.initPageTables('#adminContent');
 
-      async function loadDashboard() {
-        const result = await G.get('/api/admin/dashboard?managerUserId=' + managerId);
-        if (!result.res.ok) return;
-        const d = G.payload(result);
-        G.$('adminStats').innerHTML = `
-          <div class="stat"><span class="stat-icon"><i class="fas fa-wallet"></i></span><span>موجودی صندوق</span><b>${G.money(G.pick(d, 'fundBalance'))}</b></div>
-          <div class="stat"><span class="stat-icon"><i class="fas fa-stream"></i></span><span>نفر در صف</span><b>${G.pick(d, 'waitingQueueCount')}</b></div>
-          <div class="stat"><span class="stat-icon"><i class="fas fa-receipt"></i></span><span>واریزی امروز</span><b>${G.pick(d, 'todayPaymentsCount')}</b></div>
-          <div class="stat"><span class="stat-icon"><i class="fas fa-coins"></i></span><span>جمع واریزی امروز</span><b>${G.money(G.pick(d, 'todayPaymentsAmount'))}</b></div>`;
+
+
+      function renderInstallmentRows(list, rowClass) {
+
+        if (!list.length) return '<tr><td colspan="6">موردی یافت نشد</td></tr>';
+
+        return list.map(function (x) {
+
+          return '<tr class="' + rowClass + '"><td>' + G.pick(x, 'installmentId') + '</td><td>' + (G.pick(x, 'memberName') || '') + '</td><td>' +
+
+            (G.pick(x, 'mobile') || '') + '</td><td>' + (G.pick(x, 'installmentDate_Shamsi') || '') + '</td><td class="amount">' +
+
+            G.money(G.pick(x, 'installmentAmount')) + '</td><td>' + (G.pick(x, 'statusLabel') || '') + '</td></tr>';
+
+        }).join('');
+
       }
 
+
+
+      async function loadSettings() {
+        const result = await G.get('/api/admin/settings?managerUserId=' + managerId);
+        if (!result.res.ok) return;
+        const settings = G.payload(result) || [];
+        const appUrl = settings.find(function (s) { return G.pick(s, 'settingName') === 'AppBaseUrl'; });
+        const value = G.pick(appUrl, 'settingValue') || '';
+        G.$('appBaseUrl').value = value;
+        updateSampleLink(value);
+      }
+
+      function updateSampleLink(baseUrl) {
+        var url = (baseUrl || '').replace(/\/+$/, '');
+        G.$('sampleInstallmentLink').textContent = url
+          ? url + '/panel.html?installmentId=123&payInstallment=1'
+          : '—';
+      }
+
+      G.$('appBaseUrl').addEventListener('input', function () {
+        updateSampleLink(G.$('appBaseUrl').value);
+      });
+
+      async function loadDashboard() {
+
+        const result = await G.get('/api/admin/dashboard?managerUserId=' + managerId);
+
+        if (!result.res.ok) return;
+
+        const d = G.payload(result);
+
+        G.$('adminStats').innerHTML = `
+
+          <div class="stat"><span class="stat-icon"><i class="fas fa-wallet"></i></span><span>موجودی صندوق</span><b>${G.money(G.pick(d, 'fundBalance'))}</b></div>
+
+          <div class="stat"><span class="stat-icon"><i class="fas fa-exclamation-circle"></i></span><span>اقساط عقب\u200cافتاده</span><b>${G.formatNumber(G.pick(d, 'overdueInstallmentsCount') || 0)}</b></div>
+
+          <div class="stat"><span class="stat-icon"><i class="fas fa-hourglass-half"></i></span><span>سررسید ۳ روز دیگر</span><b>${G.formatNumber(G.pick(d, 'dueInThreeDaysInstallmentsCount') || 0)}</b></div>
+
+          <div class="stat"><span class="stat-icon"><i class="fas fa-stream"></i></span><span>نفر در صف</span><b>${G.pick(d, 'waitingQueueCount')}</b></div>
+
+          <div class="stat"><span class="stat-icon"><i class="fas fa-receipt"></i></span><span>واریزی امروز</span><b>${G.pick(d, 'todayPaymentsCount')}</b></div>
+
+          <div class="stat"><span class="stat-icon"><i class="fas fa-coins"></i></span><span>جمع واریزی امروز</span><b>${G.money(G.pick(d, 'todayPaymentsAmount'))}</b></div>`;
+
+      }
+
+
+
+      async function loadInstallmentReport() {
+
+        const result = await G.get('/api/admin/reports/installments?managerUserId=' + managerId);
+
+        if (!result.res.ok) return;
+
+        const r = G.payload(result) || {};
+
+        const overdue = G.pick(r, 'overdueInstallments') || [];
+
+        const dueSoon = G.pick(r, 'dueInThreeDaysInstallments') || [];
+
+        G.$('overdueCount').textContent = G.formatNumber(G.pick(r, 'overdueCount') || overdue.length);
+
+        G.$('dueSoonCount').textContent = G.formatNumber(G.pick(r, 'dueInThreeDaysCount') || dueSoon.length);
+
+        G.$('overdueBody').innerHTML = renderInstallmentRows(overdue, 'row-overdue');
+
+        G.$('dueSoonBody').innerHTML = renderInstallmentRows(dueSoon, 'row-due-soon');
+
+        G.refreshDataTable('overdueBody');
+
+        G.refreshDataTable('dueSoonBody');
+
+      }
+
+
+
+      function renderReminderRows(logs, options) {
+        options = options || {};
+        if (!logs.length) return '<tr><td colspan="' + (options.colspan || 7) + '">یادآوری ثبت نشده</td></tr>';
+        return logs.map(function (n) {
+          const msg = (G.pick(n, 'message') || '');
+          const shortMsg = msg.length > 80 ? msg.substring(0, 80) + '…' : msg;
+          const sent = G.pick(n, 'sentDate') || G.pick(n, 'createDate') || '';
+          const sentText = sent ? new Date(sent).toLocaleString('fa-IR') : '';
+          const status = G.pick(n, 'notificationStatusName') || G.pick(n, 'notificationStatus') || '';
+          const isFailed = String(status).indexOf('ناموفق') >= 0 || G.pick(n, 'notificationStatus') === 2;
+          const rowClass = options.highlightStatus ? (isFailed ? 'row-reminder-failed' : 'row-reminder-sent') : '';
+          const err = G.pick(n, 'errorMessage') || '';
+          const cols = options.compact
+            ? '<td>' + (G.pick(n, 'userFullName') || G.pick(n, 'userId') || '-') + '</td><td>' +
+              (G.pick(n, 'notificationTypeName') || G.pick(n, 'notificationType')) + '</td><td>' + status + '</td><td title="' +
+              msg.replace(/"/g, '&quot;') + '">' + shortMsg + '</td><td>' + err + '</td>'
+            : '<td>' + G.pick(n, 'notificationId') + '</td><td>' + sentText + '</td><td>' +
+              (G.pick(n, 'userFullName') || G.pick(n, 'userId') || '-') + '</td><td>' +
+              (G.pick(n, 'notificationTypeName') || G.pick(n, 'notificationType')) + '</td><td>' + status + '</td><td title="' +
+              msg.replace(/"/g, '&quot;') + '">' + shortMsg + '</td><td>' + err + '</td>';
+          return '<tr class="' + rowClass + '">' + cols + '</tr>';
+        }).join('');
+      }
+
+      function showLastSendResult(result) {
+        const box = G.$('lastSendBox');
+        const logs = G.pick(result, 'logs') || [];
+        if (!box) return;
+        if (!logs.length) {
+          box.style.display = 'none';
+          return;
+        }
+        box.style.display = 'block';
+        const sent = G.pick(result, 'sentCount') || 0;
+        const failed = G.pick(result, 'failedCount') || 0;
+        const skipped = G.pick(result, 'skippedCount') || 0;
+        G.$('lastSendSummary').textContent =
+          'ارسال موفق: ' + G.formatNumber(sent) + ' | ناموفق: ' + G.formatNumber(failed) +
+          (skipped ? ' | بدون اتصال بله: ' + G.formatNumber(skipped) : '');
+        G.$('lastSendBody').innerHTML = renderReminderRows(logs, { compact: true, highlightStatus: true, colspan: 5 });
+      }
+
+      async function loadReminders() {
+        const result = await G.get('/api/admin/notification-logs?managerUserId=' + managerId);
+        if (!result.res.ok) return;
+        const logs = G.payload(result) || [];
+        G.$('reminderBody').innerHTML = renderReminderRows(logs);
+        G.refreshDataTable('reminderBody');
+      }
+
+
+
       async function load() {
+
         const q = await G.get('/api/loan/queue?managerUserId=' + managerId);
+
         const queue = G.payload(q) || [];
+
         G.$('queueBody').innerHTML = queue.length ? queue.map(function (l) {
+
           return G.renderLoanTableRow(l, { showQueue: true, showMember: true, showActions: true });
+
         }).join('') : '<tr><td colspan="6">صف خالی است</td></tr>';
 
+
+
         const allLoans = await G.get('/api/loan/all?managerUserId=' + managerId);
+
         const loans = G.payload(allLoans) || [];
+
         G.$('allLoansBody').innerHTML = loans.length ? loans.map(function (l) {
+
           const u = G.pick(l, 'user');
+
           return '<tr><td>' + G.pick(l, 'loanId') + '</td><td>' + (G.pick(u, 'fullName') || G.pick(l, 'userId') || '') + '</td><td class="amount">' +
+
             G.money(G.pick(l, 'loanAmount')) + '</td><td>' + G.shamsiDate(l, 'requestDate_Shamsi', 'requestDate') + '</td><td>' +
+
             G.shamsiDate(l, 'paymentDate_Shamsi', 'paymentDate') + '</td><td>' + G.loanStatusText(l) + '</td><td>' +
+
             (G.pick(l, 'queuePosition') || '-') + '</td></tr>';
+
         }).join('') : '<tr><td colspan="7">وامی ثبت نشده</td></tr>';
 
+
+
         const p = await G.get('/api/payment?managerUserId=' + managerId);
+
         const payments = G.payload(p) || [];
+
         G.$('payBody').innerHTML = payments.length ? payments.map(function (x) {
+
           return '<tr><td>' + G.pick(x, 'paymentId') + '</td><td>' + (G.pick(x, 'userId') || '') + '</td><td class="amount">' + G.money(G.pick(x, 'amount')) + '</td><td>' + (G.pick(x, 'paymentTypeName') || G.pick(x, 'paymentType')) + '</td><td>' + (G.pick(x, 'refrenceNumber') || G.pick(x, 'zarinPalRefId') || '') + '</td><td>' + (G.pick(x, 'paymentDate_Shamsi') || '') + '</td></tr>';
+
         }).join('') : '<tr><td colspan="6">واریزی ثبت نشده</td></tr>';
 
+
+
         const ledger = await G.get('/api/admin/fund-transactions?managerUserId=' + managerId);
+
         const tx = G.payload(ledger) || [];
+
         G.$('ledgerBody').innerHTML = tx.length ? tx.map(function (t) {
+
           const amount = G.pick(t, 'amount');
+
           const sign = Number(amount) < 0 ? '' : '+';
+
           return '<tr><td>' + G.pick(t, 'fundTransactionId') + '</td><td>' + (G.pick(t, 'transactionDate_Shamsi') || '') + '</td><td>' + (G.pick(t, 'transactionTypeName') || G.pick(t, 'transactionType')) + '</td><td class="amount">' + sign + G.formatNumber(Math.abs(amount)) + ' ریال</td><td class="amount">' + G.money(G.pick(t, 'balanceAfter')) + '</td><td>' + (G.pick(t, 'description') || '') + '</td></tr>';
+
         }).join('') : '<tr><td colspan="6">تراکنشی ثبت نشده</td></tr>';
+
+
 
         await loadDashboard();
 
+        await loadInstallmentReport();
+
+        await loadReminders();
+
+        await loadSettings();
+
+
+
         G.refreshDataTable('queueBody');
+
         G.refreshDataTable('allLoansBody');
+
         G.refreshDataTable('payBody');
+
         G.refreshDataTable('ledgerBody');
+
       }
 
+
+
       document.addEventListener('click', async function (e) {
+
         const disburseBtn = e.target.closest('.btn-disburse');
+
         if (disburseBtn) {
+
           const loanId = Number(disburseBtn.getAttribute('data-id'));
+
           const { data } = await G.post('/api/loan/disburse', {
+
             loanId: loanId,
+
             managerUserId: managerId,
+
             description: 'پرداخت توسط مدیر'
+
           });
-          G.showMsg(G.$('msg'), data.message || 'خطا', data.success);
+
+          G.showMsg(G.$('manageMsg'), data.message || 'خطا', data.success);
+
           load();
+
           return;
+
         }
+
+
 
         const rejectBtn = e.target.closest('.btn-reject');
+
         if (rejectBtn) {
+
           const loanId = Number(rejectBtn.getAttribute('data-id'));
+
           const reason = prompt('دلیل رد درخواست وام را وارد کنید:');
+
           if (reason === null) return;
+
           const { data } = await G.post('/api/loan/reject', {
+
             loanId: loanId,
+
             reason: reason,
+
             managerUserId: managerId
+
           });
-          G.showMsg(G.$('msg'), data.message || 'خطا', data.success);
+
+          G.showMsg(G.$('manageMsg'), data.message || 'خطا', data.success);
+
           load();
+
         }
+
       });
+
+
 
       G.bindClick('btnProcess', async function () {
+
         const { data } = await G.post('/api/admin/process-loan-queue', { managerUserId: managerId });
-        G.showMsg(G.$('msg'), data.message || 'انجام شد', data.success);
+
+        G.showMsg(G.$('manageMsg'), data.message || 'انجام شد', data.success);
+
         load();
+
       });
+
+
 
       G.bindClick('btnRemind', async function () {
+        const btn = G.$('btnRemind');
+        if (btn) btn.disabled = true;
         const { data } = await G.post('/api/admin/send-monthly-reminders', { managerUserId: managerId });
-        G.showMsg(G.$('msg'), data.message || 'انجام شد', data.success);
-      });
-
-      G.bindClick('btnDeposit', async function () {
-        const { data } = await G.post('/api/admin/fund-deposit', {
-          managerUserId: managerId,
-          amount: G.getAmountValue('depositAmount'),
-          description: G.$('depositDesc').value
-        });
-        G.showMsg(G.$('msg'), data.message || 'خطا', data.success);
+        if (btn) btn.disabled = false;
+        G.showMsg(G.$('reminderMsg'), data.message || 'انجام شد', data.success);
         if (data.success) {
-          G.$('depositAmount').value = '';
-          G.$('depositDesc').value = '';
-          load();
+          showLastSendResult(data.data || {});
+          await loadReminders();
+          loadDashboard();
         }
       });
 
+
+
+      G.bindClick('btnSaveSettings', async function () {
+        const { data } = await G.put('/api/admin/settings', {
+          managerUserId: managerId,
+          settingName: 'AppBaseUrl',
+          settingValue: G.$('appBaseUrl').value.trim()
+        });
+        G.showMsg(G.$('settingsMsg'), data.message || 'خطا', data.success);
+        if (data.success) loadSettings();
+      });
+
+
+
+      G.bindClick('btnDeposit', async function () {
+
+        const { data } = await G.post('/api/admin/fund-deposit', {
+
+          managerUserId: managerId,
+
+          amount: G.getAmountValue('depositAmount'),
+
+          description: G.$('depositDesc').value
+
+        });
+
+        G.showMsg(G.$('depositMsg'), data.message || 'خطا', data.success);
+
+        if (data.success) {
+
+          G.$('depositAmount').value = '';
+
+          G.$('depositDesc').value = '';
+
+          load();
+
+        }
+
+      });
+
+
+
       load();
+
     });
+
   </script>
+
 </body>
+
 </html>
+
+

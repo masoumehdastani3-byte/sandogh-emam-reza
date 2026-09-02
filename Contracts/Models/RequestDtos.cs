@@ -121,12 +121,50 @@ namespace Contracts.Models
         public int ManagerUserId { get; set; }
     }
 
+    public class UpdateSettingDto
+    {
+        public int ManagerUserId { get; set; }
+        public string SettingName { get; set; }
+        public string SettingValue { get; set; }
+    }
+
     public class AdminDashboardDto
     {
         public long FundBalance { get; set; }
         public int WaitingQueueCount { get; set; }
         public int TodayPaymentsCount { get; set; }
         public long TodayPaymentsAmount { get; set; }
+        public int OverdueInstallmentsCount { get; set; }
+        public int DueInThreeDaysInstallmentsCount { get; set; }
+    }
+
+    public class InstallmentCollectionItemDto
+    {
+        public int InstallmentId { get; set; }
+        public int LoanId { get; set; }
+        public int UserId { get; set; }
+        public string MemberName { get; set; }
+        public string Mobile { get; set; }
+        public long InstallmentAmount { get; set; }
+        public string InstallmentDate_Shamsi { get; set; }
+        public int DaysUntilDue { get; set; }
+        public string StatusLabel { get; set; }
+    }
+
+    public class InstallmentCollectionReportDto
+    {
+        public int OverdueCount { get; set; }
+        public int DueInThreeDaysCount { get; set; }
+        public List<InstallmentCollectionItemDto> OverdueInstallments { get; set; }
+        public List<InstallmentCollectionItemDto> DueInThreeDaysInstallments { get; set; }
+    }
+
+    public class SendRemindersResultDto
+    {
+        public int SentCount { get; set; }
+        public int FailedCount { get; set; }
+        public int SkippedCount { get; set; }
+        public List<NotificationLogDto> Logs { get; set; }
     }
 
     public class MonthlyFundInflowDto

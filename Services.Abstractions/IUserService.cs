@@ -62,7 +62,7 @@ namespace Services.Abstractions
 
     public interface INotificationSchedulerService
     {
-        Task SendMonthlyRemindersAsync(CancellationToken cancellationToken = default);
+        Task<SendRemindersResultDto> SendMonthlyRemindersAsync(CancellationToken cancellationToken = default);
         Task ProcessLoanQueueAsync(CancellationToken cancellationToken = default);
     }
 
@@ -71,8 +71,12 @@ namespace Services.Abstractions
         Task<bool> IsManagerAsync(int userId, CancellationToken cancellationToken = default);
         Task<AdminDashboardDto> GetDashboardAsync(CancellationToken cancellationToken = default);
         Task<ManagementReportDto> GetManagementReportAsync(CancellationToken cancellationToken = default);
+        Task<InstallmentCollectionReportDto> GetInstallmentCollectionReportAsync(CancellationToken cancellationToken = default);
+        Task<List<NotificationLogDto>> GetNotificationLogsAsync(CancellationToken cancellationToken = default);
         Task<ApiResultDto> DepositFundAsync(FundDepositDto dto, CancellationToken cancellationToken = default);
         Task<List<FundTransactionDto>> GetFundTransactionsAsync(CancellationToken cancellationToken = default);
+        Task<List<SettingDto>> GetSettingsAsync(CancellationToken cancellationToken = default);
+        Task<ApiResultDto> UpdateSettingAsync(UpdateSettingDto dto, CancellationToken cancellationToken = default);
     }
 
     public interface IRoleMenuService

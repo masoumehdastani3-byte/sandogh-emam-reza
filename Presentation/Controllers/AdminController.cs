@@ -31,6 +31,40 @@ namespace Presentation.Controllers
             return Ok(await _serviceManager.AdminService.GetManagementReportAsync(cancellationToken));
         }
 
+        [HttpGet("reports/installments")]
+        public async Task<IActionResult> InstallmentCollectionReport([FromQuery] int managerUserId, CancellationToken cancellationToken)
+        {
+            if (!await _serviceManager.AdminService.IsManagerAsync(managerUserId, cancellationToken))
+                return Unauthorized(ApiResultDto.Fail("فقط مدیر صندوق مجاز است"));
+
+            return Ok(await _serviceManager.AdminService.GetInstallmentCollectionReportAsync(cancellationToken));
+        }
+
+        [HttpGet("notification-logs")]
+        public async Task<IActionResult> NotificationLogs([FromQuery] int managerUserId, CancellationToken cancellationToken)
+        {
+            if (!await _serviceManager.AdminService.IsManagerAsync(managerUserId, cancellationToken))
+                return Unauthorized(ApiResultDto.Fail("فقط مدیر صندوق مجاز است"));
+
+            return Ok(await _serviceManager.AdminService.GetNotificationLogsAsync(cancellationToken));
+        }
+
+        [HttpGet("settings")]
+        public async Task<IActionResult> Settings([FromQuery] int managerUserId, CancellationToken cancellationToken)
+        {
+            if (!await _serviceManager.AdminService.IsManagerAsync(managerUserId, cancellationToken))
+                return Unauthorized(ApiResultDto.Fail("فقط مدیر صندوق مجاز است"));
+
+            return Ok(await _serviceManager.AdminService.GetSettingsAsync(cancellationToken));
+        }
+
+        [HttpPut("settings")]
+        public async Task<IActionResult> UpdateSetting([FromBody] UpdateSettingDto dto, CancellationToken cancellationToken)
+        {
+            var result = await _serviceManager.AdminService.UpdateSettingAsync(dto, cancellationToken);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
         [HttpGet("fund-transactions")]
         public async Task<IActionResult> FundTransactions([FromQuery] int managerUserId, CancellationToken cancellationToken)
         {
@@ -53,8 +87,12 @@ namespace Presentation.Controllers
             if (!await _serviceManager.AdminService.IsManagerAsync(dto.ManagerUserId, cancellationToken))
                 return Unauthorized(ApiResultDto.Fail("فقط مدیر صندوق مجاز است"));
 
-            await _serviceManager.NotificationSchedulerService.SendMonthlyRemindersAsync(cancellationToken);
-            return Ok(ApiResultDto.Ok("یادآورها ارسال شد"));
+            var result = await _serviceManager.NotificationSchedulerService.SendMonthlyRemindersAsync(cancellationToken);
+            var message = result.Logs.Count == 0
+                ? "موردی برای یادآوری یافت نشد (اقساط عقب\u200cافتاده یا سررسید ۳ روز دیگر)"
+                : $"ارسال شد: {result.SentCount} | ناموفق: {result.FailedCount}" +
+                  (result.SkippedCount > 0 ? $" | بدون بله: {result.SkippedCount}" : "");
+            return Ok(ApiResultDto.Ok(message, result));
         }
 
         [HttpPost("process-loan-queue")]

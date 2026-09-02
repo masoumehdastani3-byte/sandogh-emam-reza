@@ -16,7 +16,7 @@ namespace Persistence.Repositories
         public void Insert(NotificationLog notification) => _dbContext.NotificationLogs.Add(notification);
 
         public async Task<IEnumerable<NotificationLog>> GetAllAsync(CancellationToken cancellationToken = default) =>
-            await _dbContext.NotificationLogs.OrderByDescending(a => a.CreateDate).ToListAsync(cancellationToken);
+            await _dbContext.NotificationLogs.Include(a => a.User).OrderByDescending(a => a.SentDate ?? a.CreateDate).ToListAsync(cancellationToken);
 
         public async Task<IEnumerable<NotificationLog>> GetByUserIdAsync(int userId, CancellationToken cancellationToken = default) =>
             await _dbContext.NotificationLogs.Where(a => a.UserId == userId)

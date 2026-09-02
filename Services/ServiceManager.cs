@@ -38,7 +38,7 @@ namespace Services
             _lazyPaymentService = new Lazy<IPaymentService>(() => new PaymentService(repositoryManager, mapper, ZarinPalService, BaleService, configuration));
             _lazyMemberPanelService = new Lazy<IMemberPanelService>(() => new MemberPanelService(repositoryManager, mapper));
             _lazyNotificationSchedulerService = new Lazy<INotificationSchedulerService>(() =>
-                new NotificationSchedulerService(repositoryManager, BaleService, LoanService, configuration));
+                new NotificationSchedulerService(repositoryManager, BaleService, LoanService, mapper, configuration));
             _lazyAdminService = new Lazy<IAdminService>(() => new AdminService(repositoryManager, mapper));
             _lazyRoleMenuService = new Lazy<IRoleMenuService>(() => new RoleMenuService(repositoryManager, AdminService, mapper));
         }

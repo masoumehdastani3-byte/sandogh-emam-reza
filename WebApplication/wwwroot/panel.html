@@ -27,7 +27,7 @@
     <div id="loginRequired" class="card" style="display:none">
       <h2><i class="fas fa-lock icon-green"></i>ورود لازم است</h2>
       <p>برای استفاده از پنل ابتدا وارد شوید.</p>
-      <a class="btn primary" href="login.html?return=panel.html">ورود به سایت</a>
+      <a class="btn primary" id="panelLoginLink" href="login.html?return=panel.html">ورود به سایت</a>
     </div>
 
     <div id="panelContent">
@@ -41,7 +41,7 @@
 
       <div class="tab-menu member-subnav" id="memberTabMenu">
         <button type="button" class="tab-btn" data-tab="tab-loan" id="btnTabLoan"><i class="fas fa-hand-holding-usd"></i>درخواست وام</button>
-        <button type="button" class="tab-btn" data-tab="tab-pay"><i class="fas fa-credit-card"></i>پرداخت آنلاین</button>
+        <button type="button" class="tab-btn" data-tab="tab-pay" id="btnTabPay"><i class="fas fa-credit-card"></i>پرداخت آنلاین خیرین</button>
         <button type="button" class="tab-btn" data-tab="tab-manual"><i class="fas fa-file-invoice-dollar"></i>پرداخت دستی</button>
         <button type="button" class="tab-btn" data-tab="tab-loans"><i class="fas fa-file-invoice"></i>وام‌های من</button>
         <button type="button" class="tab-btn" data-tab="tab-installments"><i class="fas fa-calendar-check"></i>اقساط</button>
@@ -59,15 +59,12 @@
       </div>
 
       <div class="card tab-panel" id="tab-pay">
-        <h2><i class="fas fa-credit-card icon-green"></i>پرداخت قسط / کمک (زرین‌پال)</h2>
-        <div class="row">
-          <div>
-            <label>نوع پرداخت</label>
-            <select id="payType"><option value="1">قسط وام</option><option value="2">کمک خیرین</option></select>
-          </div>
-          <div><label>شناسه قسط</label><input id="installmentId" type="number" /></div>
-        </div>
-        <label>مبلغ (ریال)</label>
+        <h2><i class="fas fa-credit-card icon-green"></i>پرداخت آنلاین کمک خیرین (زرین‌پال)</h2>
+        <p class="muted-text" style="margin-top:0;line-height:1.8;padding:.75rem;background:var(--brand-green-soft);border-radius:.65rem;border-right:3px solid var(--brand-green)">
+          <i class="fas fa-info-circle icon-green"></i>
+          پرداخت آنلاین <strong>فقط برای کمک خیرین</strong> است. برای پرداخت <strong>قسط وام</strong> حتماً از تب «اقساط» و دکمه پرداخت همان قسط استفاده کنید.
+        </p>
+        <label>مبلغ کمک (ریال)</label>
         <input id="payAmount" type="text" class="amount-input" inputmode="numeric" placeholder="مثال: 1,000,000" />
         <button type="button" class="btn primary block" id="btnPay"><i class="fas fa-university"></i>پرداخت آنلاین</button>
         <div id="payMsg" class="msg"></div>
@@ -97,6 +94,7 @@
 
       <div class="card tab-panel" id="tab-installments">
         <h2><i class="fas fa-calendar-check icon-green"></i>اقساط</h2>
+        <p class="muted-text" style="margin-top:0">برای پرداخت قسط، روی دکمه «پرداخت» در ردیف همان قسط بزنید.</p>
         <div style="overflow:auto"><table><thead><tr><th>شناسه</th><th>سررسید</th><th>مبلغ</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody id="instBody"></tbody></table></div>
       </div>
 
@@ -114,7 +112,25 @@
       if (!userId) {
         G.$('loginRequired').style.display = 'block';
         G.$('panelContent').style.display = 'none';
+        var returnUrl = 'panel.html' + window.location.search;
+        G.$('panelLoginLink').href = 'login.html?return=' + encodeURIComponent(returnUrl);
         return;
+      }
+
+      async function payInstallmentOnline(installmentId, amount) {
+        const { data } = await G.post('/api/payment/zarinpal/request', {
+          userId: userId,
+          amount: amount,
+          installmentId: installmentId,
+          paymentType: 1,
+          description: 'پرداخت قسط شماره ' + installmentId
+        });
+        if (!data.success) {
+          G.showMsg(G.$('loanMsg'), data.message || 'خطا در اتصال به درگاه', false);
+          return;
+        }
+        const gatewayUrl = G.pick(data.data, 'gatewayUrl');
+        if (gatewayUrl) location.href = gatewayUrl;
       }
 
       G.initTabs('tab-installments');
@@ -140,7 +156,7 @@
         due.setHours(0, 0, 0, 0);
         const diffDays = Math.round((due - today) / (1000 * 60 * 60 * 24));
 
-        if (diffDays <= 7) return 'inst-row-due-soon';
+        if (diffDays <= 3) return 'inst-row-due-soon';
         return '';
       }
 
@@ -157,9 +173,11 @@
         G.$('maxLoan').textContent = G.money(G.pick(panel, 'maxLoanAmount'));
 
         if (G.pick(user, 'monthlyDonationAmount')) G.setAmountValue('payAmount', G.pick(user, 'monthlyDonationAmount'));
-        if (Number(G.pick(user, 'roleId')) === 3) {
+        const isDonator = Number(G.pick(user, 'roleId')) === 3;
+        if (isDonator) {
           G.$('btnTabLoan').style.display = 'none';
-          G.$('payType').value = '2';
+        } else {
+          G.$('btnTabPay').style.display = 'none';
         }
 
         G.$('stats').innerHTML = `
@@ -197,6 +215,21 @@
         G.refreshDataTable('loanBody');
         G.refreshDataTable('instBody');
         G.refreshDataTable('payBody');
+
+        const params = new URLSearchParams(location.search);
+        const payInstId = Number(params.get('installmentId') || 0);
+        const autoPay = params.get('payInstallment') === '1';
+        if (payInstId) {
+          G.openTab('tab-installments');
+          const inst = installments.find(function (i) { return Number(G.pick(i, 'installmentId')) === payInstId; });
+          if (autoPay && inst && Number(G.pick(inst, 'installmentStatus')) !== 1) {
+            await payInstallmentOnline(payInstId, Number(G.pick(inst, 'installmentAmount')) || 0);
+          }
+          if (history.replaceState) history.replaceState({}, '', 'panel.html');
+        } else if (params.get('pay') === 'donation' && isDonator) {
+          G.openTab('tab-pay');
+          if (history.replaceState) history.replaceState({}, '', 'panel.html');
+        }
       }
 
       G.bindClick('btnLoan', async function () {
@@ -213,9 +246,9 @@
         const { data } = await G.post('/api/payment/zarinpal/request', {
           userId: userId,
           amount: G.getAmountValue('payAmount'),
-          installmentId: G.$('installmentId').value ? Number(G.$('installmentId').value) : null,
-          paymentType: Number(G.$('payType').value),
-          description: 'پرداخت از پنل'
+          installmentId: null,
+          paymentType: 2,
+          description: 'کمک خیرین از پنل'
         });
         G.showMsg(G.$('payMsg'), data.message || 'خطا', data.success);
         const gatewayUrl = G.pick(data.data, 'gatewayUrl');
@@ -246,21 +279,8 @@
         if (!installmentId || amount <= 0) return;
 
         payBtn.disabled = true;
-        const { data } = await G.post('/api/payment/zarinpal/request', {
-          userId: userId,
-          amount: amount,
-          installmentId: installmentId,
-          paymentType: 1,
-          description: 'پرداخت قسط شماره ' + installmentId
-        });
+        await payInstallmentOnline(installmentId, amount);
         payBtn.disabled = false;
-
-        if (!data.success) {
-          alert(data.message || 'خطا در اتصال به درگاه');
-          return;
-        }
-        const gatewayUrl = G.pick(data.data, 'gatewayUrl');
-        if (gatewayUrl) location.href = gatewayUrl;
       });
 
       load();

@@ -80,24 +80,8 @@
         G.showMsg(G.$('msg'), data.message || 'خطا در ثبت‌نام', data.success);
         if (!data.success) return;
 
-        const info = data.data || {};
-        const userId = G.pick(info, 'userId');
-        if (userId) localStorage.setItem('gl_userId', userId);
-
-        G.$('baleBox').style.display = 'block';
-        if (G.pick(info, 'passwordUntilBaleConnected')) {
-          G.$('baleHelp').textContent = 'رمز موقت تا اتصال بله: ' + G.pick(info, 'passwordUntilBaleConnected');
-        } else {
-          G.$('baleHelp').textContent = 'روی لینک زیر بزنید و Start را بزنید.';
-        }
-        const botLink = G.pick(info, 'botLink');
-        if (botLink) {
-          G.$('botLink').href = botLink;
-          G.$('botLink').style.display = 'inline-flex';
-        } else {
-          G.$('botLink').style.display = 'none';
-          G.$('baleHelp').textContent += ' (نام کاربری ربات در تنظیمات وارد نشده — کد ملی را برای ربات بفرستید.)';
-        }
+        const nationalCode = G.toEnglishDigits(G.$('nationalCode').value).trim();
+        location.href = 'login.html?registered=1&nationalCode=' + encodeURIComponent(nationalCode);
       });
 
       G.bindClick('btnPoll', async function () {

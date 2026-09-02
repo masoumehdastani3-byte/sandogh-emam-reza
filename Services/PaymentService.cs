@@ -45,19 +45,29 @@ namespace Services
             if (dto.Amount <= 0)
                 return ApiResultDto.Fail("مبلغ نامعتبر است");
 
-            if (dto.PaymentType == (byte)PaymentType.Installment && dto.InstallmentId.HasValue)
+            if (dto.PaymentType == (byte)PaymentType.Installment)
             {
+                if (!dto.InstallmentId.HasValue)
+                    return ApiResultDto.Fail("پرداخت قسط فقط از لیست اقساط یا لینک پرداخت قسط امکان‌پذیر است");
+
                 var installment = await _repositoryManager.InstallmentRepository.GetByInstallmentIdAsync(dto.InstallmentId.Value, cancellationToken);
                 if (installment == null)
                     return ApiResultDto.Fail("قسط یافت نشد");
                 if (installment.InstallmentStatus == (byte)InstallmentStatus.Cleared)
                     return ApiResultDto.Fail("این قسط قبلاً پرداخت شده است");
-                if (installment.Loan.UserId != dto.UserId)
+                if (installment.Loan?.UserId != dto.UserId)
                     return ApiResultDto.Fail("قسط متعلق به این کاربر نیست");
+                if (dto.Amount != installment.InstallmentAmount)
+                    return ApiResultDto.Fail("مبلغ پرداخت باید برابر مبلغ قسط باشد");
+            }
+            else if (dto.PaymentType != (byte)PaymentType.Donation)
+            {
+                return ApiResultDto.Fail("پرداخت آنلاین فقط برای کمک خیرین یا پرداخت قسط از لیست اقساط مجاز است");
             }
 
+            var baseUrl = await AppUrlHelper.GetBaseUrlAsync(_repositoryManager, _configuration, cancellationToken);
             var callback = string.IsNullOrWhiteSpace(dto.CallbackUrl)
-                ? _configuration["ZarinPal:CallbackUrl"]
+                ? (_configuration["ZarinPal:CallbackUrl"] ?? $"{baseUrl}/api/payment/zarinpal/callback")
                 : dto.CallbackUrl;
 
             var now = DateTime.Now;

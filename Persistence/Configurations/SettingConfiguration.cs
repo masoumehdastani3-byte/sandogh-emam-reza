@@ -17,7 +17,7 @@ namespace Persistence.Configurations
             builder.Property(setting => setting.Active).HasDefaultValue(true);
             builder.Property(setting => setting.SettingName).HasMaxLength(50);
             builder.Property(setting => setting.SettinCaption).HasMaxLength(50);
-            builder.Property(setting => setting.SettingValue).HasMaxLength(50);
+            builder.Property(setting => setting.SettingValue).HasMaxLength(500);
             builder.Property(setting => setting.Category).HasMaxLength(50);
 
         }

@@ -17,7 +17,7 @@ namespace Services
 {
     public sealed class UserService : IUserService
     {
-        private const int OtpExpiryMinutes = 5;
+        private const int OtpExpiryMinutes = 10;
         private const int OtpMaxAttempts = 5;
         private const int OtpMaxRequestsPerWindow = 3;
         private const int OtpRequestWindowMinutes = 15;

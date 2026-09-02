@@ -1,3 +1,4 @@
+using Contracts.Enums;
 using System;
 
 namespace Contracts.Models
@@ -14,5 +15,9 @@ namespace Contracts.Models
         public string RelatedEntity { get; set; }
         public int? RelatedId { get; set; }
         public string ErrorMessage { get; set; }
+
+        public string NotificationTypeName => EnumDescription.GetEnumDescription((NotificationType)NotificationType);
+        public string NotificationStatusName => EnumDescription.GetEnumDescription((NotificationStatus)NotificationStatus);
+        public string UserFullName { get; set; }
     }
 }

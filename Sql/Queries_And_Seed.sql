@@ -20,6 +20,13 @@ IF NOT EXISTS (SELECT 1 FROM Setting WHERE SettingName = 'DefaultInstallmentCoun
     INSERT INTO Setting (SettingName, SettinCaption, SettingValue, Category, Active, CreateDate)
     VALUES ('DefaultInstallmentCount', N'تعداد اقساط', '10', 'Loan', 1, GETDATE());
 
+IF COL_LENGTH('dbo.Setting', 'SettingValue') IS NOT NULL AND COL_LENGTH('dbo.Setting', 'SettingValue') < 500
+    ALTER TABLE [dbo].[Setting] ALTER COLUMN [SettingValue] nvarchar(500) NULL;
+
+IF NOT EXISTS (SELECT 1 FROM Setting WHERE SettingName = 'AppBaseUrl')
+    INSERT INTO Setting (SettingName, SettinCaption, SettingValue, Category, Active, CreateDate)
+    VALUES ('AppBaseUrl', N'آدرس سایت (لینک بله)', 'http://localhost:5000', 'App', 1, GETDATE());
+
 /* ========== Useful Queries ========== */
 
 -- 1) صف انتظار وام (اولویت: زودتر درخواست داده)
@@ -52,7 +59,7 @@ IF NOT EXISTS (SELECT 1 FROM Setting WHERE SettingName = 'DefaultInstallmentCoun
 -- INNER JOIN Loan L ON L.LoanId = I.LoanId
 -- INNER JOIN [User] U ON U.UserId = L.UserId
 -- WHERE I.InstallmentStatus <> 1
---   AND I.InstallmentDate BETWEEN CAST(GETDATE() AS DATE) AND DATEADD(DAY, 7, CAST(GETDATE() AS DATE));
+--   AND I.InstallmentDate BETWEEN CAST(GETDATE() AS DATE) AND DATEADD(DAY, 3, CAST(GETDATE() AS DATE));
 
 -- 6) گزارش واریزی‌های امروز برای مدیران
 -- SELECT P.*, U.FullName

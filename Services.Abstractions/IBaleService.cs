@@ -10,8 +10,8 @@ namespace Services.Abstractions
         Task<bool> SendMessageAsync(string chatId, string message, CancellationToken cancellationToken = default);
         Task NotifyPasswordAsync(User user, string password, CancellationToken cancellationToken = default);
         Task<bool> NotifyLoginOtpAsync(User user, string otpCode, CancellationToken cancellationToken = default);
-        Task NotifyInstallmentReminderAsync(User user, Installment installment, string paymentLink, CancellationToken cancellationToken = default);
-        Task NotifyDonationLinkAsync(User user, string paymentLink, CancellationToken cancellationToken = default);
+        Task<NotificationLog> NotifyInstallmentReminderAsync(User user, Installment installment, string paymentLink, bool isOverdue = false, CancellationToken cancellationToken = default);
+        Task<NotificationLog> NotifyDonationLinkAsync(User user, string paymentLink, CancellationToken cancellationToken = default);
         Task NotifyManagersPaymentAsync(Payment payment, User payer, CancellationToken cancellationToken = default);
 
         /// <summary>پردازش آپدیت‌های دریافتی از webhook یا getUpdates و ذخیره chat_id</summary>

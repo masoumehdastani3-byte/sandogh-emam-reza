@@ -309,9 +309,14 @@ END
             await EnsureMenusAndAccessAsync(db);
             await EnsureDefaultAdminUserAsync(db);
 
+            await db.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH('dbo.Setting', 'SettingValue') IS NOT NULL AND COL_LENGTH('dbo.Setting', 'SettingValue') < 500
+    ALTER TABLE [dbo].[Setting] ALTER COLUMN [SettingValue] nvarchar(500) NULL;");
+
             await EnsureSettingAsync(db, "MaxLoanAmount", "سقف وام قابل پرداخت", "50000000", "Loan");
             await EnsureSettingAsync(db, "DefaultInstallmentCount", "تعداد اقساط پیش‌فرض", "10", "Loan");
             await EnsureSettingAsync(db, "FundInitialBalance", "موجودی اولیه صندوق", "0", "Fund");
+            await EnsureSettingAsync(db, "AppBaseUrl", "آدرس سایت (لینک بله)", "http://localhost:5000", "App");
             await db.SaveChangesAsync();
 
             if (!await db.FundTransactions.AnyAsync())

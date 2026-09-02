@@ -23,7 +23,7 @@ namespace Persistence.Repositories
         public void Update(Installment installment) => _dbContext.Installments.Update(installment);
 
         public async Task<IEnumerable<Installment>> GetAllAsync(CancellationToken cancellationToken = default) =>
-            await _dbContext.Installments.Include(a => a.Loan).ToListAsync(cancellationToken);
+            await _dbContext.Installments.Include(a => a.Loan).ThenInclude(l => l.User).ToListAsync(cancellationToken);
 
         public async Task<Installment> GetByInstallmentIdAsync(int installmentId, CancellationToken cancellationToken = default) =>
             await _dbContext.Installments.Include(a => a.Loan)

@@ -15,6 +15,8 @@ namespace Services
 {
     public sealed class LoanService : ILoanService
     {
+        private const int FirstInstallmentDelayDays = 30;
+
         private readonly IRepositoryManager _repositoryManager;
         private readonly IMapper _mapper;
         private readonly IBaleService _baleService;
@@ -132,9 +134,10 @@ namespace Services
             loan.ModifyUserId = dto.ManagerUserId;
 
             var installments = new List<Installment>();
+            var firstDueDate = now.AddDays(FirstInstallmentDelayDays);
             for (var i = 1; i <= installmentCount; i++)
             {
-                var due = now.AddMonths(i);
+                var due = firstDueDate.AddMonths(i - 1);
                 installments.Add(new Installment
                 {
                     LoanId = loan.LoanId,
@@ -177,7 +180,7 @@ namespace Services
             if (user != null && !string.IsNullOrEmpty(user.BaleChatId))
             {
                 await _baleService.SendMessageAsync(user.BaleChatId,
-                    $"وام شما به مبلغ {loan.LoanAmount:N0} ریال پرداخت شد. بازپرداخت در {installmentCount} قسط ماهانه.",
+                    $"وام شما به مبلغ {loan.LoanAmount:N0} ریال پرداخت شد. اولین قسط ۳۰ روز بعد و سپس {installmentCount} قسط ماهانه.",
                     cancellationToken);
             }
 

@@ -1,6 +1,7 @@
 using AutoMapper;
 using Contracts.Enums;
 using Contracts.Models;
+using Domain.Entities;
 using Domain.Repositories;
 using Services.Abstractions;
 using Services.Helpers;
@@ -101,44 +102,81 @@ namespace Services
         private readonly IRepositoryManager _repositoryManager;
         private readonly IBaleService _baleService;
         private readonly ILoanService _loanService;
+        private readonly IMapper _mapper;
         private readonly Microsoft.Extensions.Configuration.IConfiguration _configuration;
 
         public NotificationSchedulerService(
             IRepositoryManager repositoryManager,
             IBaleService baleService,
             ILoanService loanService,
+            IMapper mapper,
             Microsoft.Extensions.Configuration.IConfiguration configuration)
         {
             _repositoryManager = repositoryManager;
             _baleService = baleService;
             _loanService = loanService;
+            _mapper = mapper;
             _configuration = configuration;
         }
 
-        public async Task SendMonthlyRemindersAsync(CancellationToken cancellationToken = default)
+        public async Task<SendRemindersResultDto> SendMonthlyRemindersAsync(CancellationToken cancellationToken = default)
         {
-            var baseUrl = _configuration["App:BaseUrl"] ?? "http://localhost:5000";
-            var from = System.DateTime.Today;
-            var to = from.AddDays(7);
+            const int reminderDaysBeforeDue = 3;
+            var baseUrl = await AppUrlHelper.GetBaseUrlAsync(_repositoryManager, _configuration, cancellationToken);
+            var today = System.DateTime.Today;
+            var dueInThreeDays = today.AddDays(reminderDaysBeforeDue);
+            var logs = new List<NotificationLog>();
+            var userNames = new Dictionary<int, string>();
 
-            var upcoming = await _repositoryManager.InstallmentRepository.GetUpcomingUnpaidAsync(from, to, cancellationToken);
-            foreach (var installment in upcoming)
+            var unpaid = (await _repositoryManager.InstallmentRepository.GetAllAsync(cancellationToken))
+                .Where(i => i.InstallmentStatus != (byte)InstallmentStatus.Cleared && i.Active != false)
+                .Where(i => i.InstallmentDate.Date < today || i.InstallmentDate.Date == dueInThreeDays)
+                .ToList();
+
+            foreach (var installment in unpaid)
             {
                 var user = installment.Loan?.User;
-                if (user == null || string.IsNullOrWhiteSpace(user.BaleChatId)) continue;
-                var link = $"{baseUrl}/panel.html?userId={user.UserId}&installmentId={installment.InstallmentId}";
-                await _baleService.NotifyInstallmentReminderAsync(user, installment, link, cancellationToken);
+                if (user == null) continue;
+
+                userNames[user.UserId] = user.FullName;
+                var isOverdue = installment.InstallmentDate.Date < today;
+                var link = $"{baseUrl}/panel.html?installmentId={installment.InstallmentId}&payInstallment=1";
+                var log = await _baleService.NotifyInstallmentReminderAsync(user, installment, link, isOverdue, cancellationToken);
+                logs.Add(log);
             }
 
             var donatorRole = await _repositoryManager.UserRoleRepository.GetAllAsync(cancellationToken);
             var donatorRoleId = donatorRole.FirstOrDefault(r => r.RoleName == "خیر")?.RoleId ?? (int)UserRoleType.Donator;
-            var donators = await _repositoryManager.UserRepository.GetByRoleIdAsync(donatorRoleId, cancellationToken);
+            var donators = (await _repositoryManager.UserRepository.GetByRoleIdAsync(donatorRoleId, cancellationToken)).ToList();
             foreach (var donator in donators)
             {
-                if (string.IsNullOrWhiteSpace(donator.BaleChatId) || donator.MonthlyDonationAmount == null) continue;
+                if (donator.MonthlyDonationAmount == null) continue;
+                userNames[donator.UserId] = donator.FullName;
                 var link = $"{baseUrl}/panel.html?userId={donator.UserId}&pay=donation";
-                await _baleService.NotifyDonationLinkAsync(donator, link, cancellationToken);
+                var log = await _baleService.NotifyDonationLinkAsync(donator, link, cancellationToken);
+                logs.Add(log);
             }
+
+            var sent = logs.Count(l => l.NotificationStatus == (byte)NotificationStatus.Sent);
+            var failed = logs.Count(l => l.NotificationStatus == (byte)NotificationStatus.Failed);
+            var skipped = logs.Count(l => l.NotificationStatus == (byte)NotificationStatus.Failed &&
+                                          !string.IsNullOrWhiteSpace(l.ErrorMessage) &&
+                                          l.ErrorMessage.Contains("بله متصل"));
+
+            var dtos = _mapper.Map<List<NotificationLogDto>>(logs);
+            foreach (var dto in dtos)
+            {
+                if (dto.UserId.HasValue && userNames.TryGetValue(dto.UserId.Value, out var name))
+                    dto.UserFullName = name;
+            }
+
+            return new SendRemindersResultDto
+            {
+                SentCount = sent,
+                FailedCount = failed,
+                SkippedCount = skipped,
+                Logs = dtos
+            };
         }
 
         public async Task ProcessLoanQueueAsync(CancellationToken cancellationToken = default)

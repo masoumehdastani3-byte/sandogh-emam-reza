@@ -18,7 +18,8 @@ namespace Services.Mappings
             CreateMap<UserMenu, UserMenuDto>();
             CreateMap<UserSubMenu, UserSubMenuDto>();
             CreateMap<Setting, SettingDto>();
-            CreateMap<NotificationLog, NotificationLogDto>();
+            CreateMap<NotificationLog, NotificationLogDto>()
+                .ForMember(dest => dest.UserFullName, opt => opt.MapFrom(src => src.User != null ? src.User.FullName : null));
             CreateMap<FundTransaction, FundTransactionDto>();
         }
     }

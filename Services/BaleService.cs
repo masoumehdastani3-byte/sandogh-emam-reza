@@ -85,25 +85,39 @@ namespace Services
             if (string.IsNullOrWhiteSpace(user?.BaleChatId))
                 return false;
 
-            var msg = $"کد ورود یک‌بارمصرف صندوق قرض‌الحسنه:\n{otpCode}\n\nاین کد تا ۵ دقیقه معتبر است. آن را با کسی به اشتراک نگذارید.";
+            var msg = $"کد ورود یک‌بارمصرف صندوق قرض‌الحسنه:\n{otpCode}\n\nاین کد تا ۱۰ دقیقه معتبر است. آن را با کسی به اشتراک نگذارید.";
             var ok = await SendMessageAsync(user.BaleChatId, msg, cancellationToken);
             await LogAsync(user.UserId, NotificationType.OtpLogin, ok ? NotificationStatus.Sent : NotificationStatus.Failed, "کد ورود یک‌بارمصرف ارسال شد");
             return ok;
         }
 
-        public async Task NotifyInstallmentReminderAsync(User user, Installment installment, string paymentLink, CancellationToken cancellationToken = default)
+        public async Task<NotificationLog> NotifyInstallmentReminderAsync(User user, Installment installment, string paymentLink, bool isOverdue = false, CancellationToken cancellationToken = default)
         {
-            var msg = $"یادآوری پرداخت قسط\nمبلغ: {installment.InstallmentAmount:N0} ریال\nسررسید: {installment.InstallmentDate_shansi}\nلینک پرداخت: {paymentLink}";
+            var header = isOverdue
+                ? "یادآوری پرداخت قسط عقب\u200cافتاده"
+                : "یادآوری پرداخت قسط (۳ روز مانده به سررسید)";
+            var msg = $"{header}\n" +
+                      $"مبلغ: {installment.InstallmentAmount:N0} ریال\n" +
+                      $"سررسید: {installment.InstallmentDate_shansi}\n\n" +
+                      $"برای پرداخت آنلاین همین قسط روی لینک زیر بزنید:\n{paymentLink}";
+
+            if (string.IsNullOrWhiteSpace(user?.BaleChatId))
+                return await LogAsync(user?.UserId, NotificationType.InstallmentReminder, NotificationStatus.Failed, msg, "کاربر به بله متصل نیست", relatedEntity: "Installment", relatedId: installment.InstallmentId);
+
             var ok = await SendMessageAsync(user.BaleChatId, msg, cancellationToken);
-            await LogAsync(user.UserId, NotificationType.InstallmentReminder, ok ? NotificationStatus.Sent : NotificationStatus.Failed, msg, relatedEntity: "Installment", relatedId: installment.InstallmentId);
+            return await LogAsync(user.UserId, NotificationType.InstallmentReminder, ok ? NotificationStatus.Sent : NotificationStatus.Failed, msg, ok ? null : "ارسال پیام بله ناموفق بود", relatedEntity: "Installment", relatedId: installment.InstallmentId);
         }
 
-        public async Task NotifyDonationLinkAsync(User user, string paymentLink, CancellationToken cancellationToken = default)
+        public async Task<NotificationLog> NotifyDonationLinkAsync(User user, string paymentLink, CancellationToken cancellationToken = default)
         {
             var amount = user.MonthlyDonationAmount ?? 0;
             var msg = $"لینک پرداخت ماهانه کمک خیرین\nمبلغ: {amount:N0} ریال\nلینک: {paymentLink}";
+
+            if (string.IsNullOrWhiteSpace(user?.BaleChatId))
+                return await LogAsync(user?.UserId, NotificationType.DonationLink, NotificationStatus.Failed, msg, "کاربر به بله متصل نیست");
+
             var ok = await SendMessageAsync(user.BaleChatId, msg, cancellationToken);
-            await LogAsync(user.UserId, NotificationType.DonationLink, ok ? NotificationStatus.Sent : NotificationStatus.Failed, msg);
+            return await LogAsync(user.UserId, NotificationType.DonationLink, ok ? NotificationStatus.Sent : NotificationStatus.Failed, msg, ok ? null : "ارسال پیام بله ناموفق بود");
         }
 
         public async Task NotifyManagersPaymentAsync(Payment payment, User payer, CancellationToken cancellationToken = default)
@@ -281,9 +295,9 @@ namespace Services
             return true;
         }
 
-        private async Task LogAsync(int? userId, NotificationType type, NotificationStatus status, string message, string error = null, string relatedEntity = null, int? relatedId = null)
+        private async Task<NotificationLog> LogAsync(int? userId, NotificationType type, NotificationStatus status, string message, string error = null, string relatedEntity = null, int? relatedId = null)
         {
-            _repositoryManager.NotificationLogRepository.Insert(new NotificationLog
+            var log = new NotificationLog
             {
                 UserId = userId,
                 NotificationType = (byte)type,
@@ -296,8 +310,10 @@ namespace Services
                 RelatedId = relatedId,
                 CreateDate = DateTime.Now,
                 Active = true
-            });
+            };
+            _repositoryManager.NotificationLogRepository.Insert(log);
             await _repositoryManager.UnitOfWork.SaveChangesAsync();
+            return log;
         }
     }
 }

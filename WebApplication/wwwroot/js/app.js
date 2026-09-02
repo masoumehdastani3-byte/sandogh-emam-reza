@@ -468,10 +468,14 @@ window.GoodLoan = (function () {
 
   var ADMIN_NAV_ITEMS = [
     { href: 'admin.html?tab=tab-manage', icon: 'fa-cogs', label: 'مدیریت صندوق', match: function (p, t) { return p === 'admin' && (!t || t === 'tab-manage'); } },
+    { href: 'admin.html?tab=tab-fund-deposit', icon: 'fa-piggy-bank', label: 'شارژ صندوق', match: function (p, t) { return p === 'admin' && t === 'tab-fund-deposit'; } },
+    { href: 'admin.html?tab=tab-reminders', icon: 'fa-bell', label: 'یادآوری\u200cها', match: function (p, t) { return p === 'admin' && t === 'tab-reminders'; } },
+    { href: 'admin.html?tab=tab-installments-report', icon: 'fa-calendar-exclamation', label: 'گزارش اقساط', match: function (p, t) { return p === 'admin' && t === 'tab-installments-report'; } },
     { href: 'admin.html?tab=tab-queue', icon: 'fa-stream', label: 'صف وام', match: function (p, t) { return p === 'admin' && t === 'tab-queue'; } },
     { href: 'admin.html?tab=tab-loans', icon: 'fa-file-invoice', label: 'همه وام\u200cها', match: function (p, t) { return p === 'admin' && t === 'tab-loans'; } },
     { href: 'admin.html?tab=tab-deposits', icon: 'fa-money-check-alt', label: 'واریزی\u200cها', match: function (p, t) { return p === 'admin' && t === 'tab-deposits'; } },
     { href: 'admin.html?tab=tab-ledger', icon: 'fa-book', label: 'دفتر صندوق', match: function (p, t) { return p === 'admin' && t === 'tab-ledger'; } },
+    { href: 'admin.html?tab=tab-settings', icon: 'fa-sliders-h', label: 'تنظیمات', match: function (p, t) { return p === 'admin' && t === 'tab-settings'; } },
     { sep: true },
     { href: 'reports.html', icon: 'fa-chart-pie', label: 'گزارش مدیریتی', match: function (p) { return p === 'reports'; } },
     { href: 'roles.html', icon: 'fa-users-cog', label: 'نقش\u200cها', match: function (p) { return p === 'roles'; } }
@@ -480,7 +484,7 @@ window.GoodLoan = (function () {
   function renderAdminNav(containerId, options) {
     options = options || {};
     var page = options.page || '';
-    var tab = options.tab || new URLSearchParams(location.search).get('tab') || (page === 'admin' ? 'tab-queue' : '');
+    var tab = options.tab || new URLSearchParams(location.search).get('tab') || (page === 'admin' ? 'tab-manage' : '');
     var container = $(containerId);
     if (!container) return;
 

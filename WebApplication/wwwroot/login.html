@@ -172,7 +172,7 @@
 
         G.$('btnResendOtp').style.display = 'inline-flex';
 
-        G.$('otpHint').textContent = message || 'کد ۶ رقمی را از پیام بله وارد کنید. اعتبار: ۵ دقیقه';
+        G.$('otpHint').textContent = message || 'کد ۶ رقمی را از پیام بله وارد کنید. اعتبار: ۱۰ دقیقه';
 
         G.$('otpCode').focus();
 
@@ -200,6 +200,13 @@
 
         hint.textContent = 'مدیر: می‌توانید با کد بله یا رمز Admin1234 وارد شوید.';
 
+      }
+
+      const params = new URLSearchParams(location.search);
+      if (params.get('registered') === '1') {
+        const nc = params.get('nationalCode');
+        if (nc) G.$('nationalCode').value = G.toEnglishDigits(nc);
+        G.showMsg(G.$('msg'), 'عضویت با موفقیت انجام شد. برای ورود، ابتدا ربات بله را Start کنید سپس کد ورود را درخواست دهید.', true);
       }
 
 

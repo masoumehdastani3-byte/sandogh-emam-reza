@@ -70,6 +70,7 @@ namespace Services.Abstractions
     {
         Task<bool> IsManagerAsync(int userId, CancellationToken cancellationToken = default);
         Task<AdminDashboardDto> GetDashboardAsync(CancellationToken cancellationToken = default);
+        Task<ManagementReportDto> GetManagementReportAsync(CancellationToken cancellationToken = default);
         Task<ApiResultDto> DepositFundAsync(FundDepositDto dto, CancellationToken cancellationToken = default);
         Task<List<FundTransactionDto>> GetFundTransactionsAsync(CancellationToken cancellationToken = default);
     }

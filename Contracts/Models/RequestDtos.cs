@@ -129,6 +129,27 @@ namespace Contracts.Models
         public long TodayPaymentsAmount { get; set; }
     }
 
+    public class MonthlyFundInflowDto
+    {
+        public int Year { get; set; }
+        public int Month { get; set; }
+        public string MonthLabel { get; set; }
+        public long TotalAmount { get; set; }
+        public int TransactionCount { get; set; }
+    }
+
+    public class ManagementReportDto
+    {
+        public long FundBalance { get; set; }
+        public int DebtorLoansCount { get; set; }
+        public long TotalDebtAmount { get; set; }
+        public int DisbursedLoansCount { get; set; }
+        public long TotalDisbursedAmount { get; set; }
+        public long CurrentMonthInflow { get; set; }
+        public string ReportDate_Shamsi { get; set; }
+        public List<MonthlyFundInflowDto> MonthlyInflows { get; set; }
+    }
+
     public class SaveRoleDto
     {
         public int ManagerUserId { get; set; }

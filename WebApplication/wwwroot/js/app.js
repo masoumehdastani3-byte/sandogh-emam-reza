@@ -382,6 +382,8 @@ window.GoodLoan = (function () {
 
     if (btn) btn.classList.add('active');
 
+    scrollActiveTabIntoView();
+
   }
 
 
@@ -390,11 +392,7 @@ window.GoodLoan = (function () {
 
     const menu = document.querySelector('.tab-menu');
 
-    if (!menu) return;
-
-
-
-    if (!menu.dataset.bound) {
+    if (menu && !menu.dataset.bound) {
 
       menu.addEventListener('click', function (e) {
 
@@ -412,11 +410,9 @@ window.GoodLoan = (function () {
 
     }
 
-
-
     const fromQuery = new URLSearchParams(location.search).get('tab');
 
-    const first = menu.querySelector('.tab-btn');
+    const first = menu && menu.querySelector('.tab-btn');
 
     const target = fromQuery || defaultTabId || (first && first.getAttribute('data-tab'));
 
@@ -468,6 +464,104 @@ window.GoodLoan = (function () {
 
     });
 
+  }
+
+  var ADMIN_NAV_ITEMS = [
+    { href: 'admin.html?tab=tab-manage', icon: 'fa-cogs', label: 'مدیریت صندوق', match: function (p, t) { return p === 'admin' && (!t || t === 'tab-manage'); } },
+    { href: 'admin.html?tab=tab-queue', icon: 'fa-stream', label: 'صف وام', match: function (p, t) { return p === 'admin' && t === 'tab-queue'; } },
+    { href: 'admin.html?tab=tab-loans', icon: 'fa-file-invoice', label: 'همه وام\u200cها', match: function (p, t) { return p === 'admin' && t === 'tab-loans'; } },
+    { href: 'admin.html?tab=tab-deposits', icon: 'fa-money-check-alt', label: 'واریزی\u200cها', match: function (p, t) { return p === 'admin' && t === 'tab-deposits'; } },
+    { href: 'admin.html?tab=tab-ledger', icon: 'fa-book', label: 'دفتر صندوق', match: function (p, t) { return p === 'admin' && t === 'tab-ledger'; } },
+    { sep: true },
+    { href: 'reports.html', icon: 'fa-chart-pie', label: 'گزارش مدیریتی', match: function (p) { return p === 'reports'; } },
+    { href: 'roles.html', icon: 'fa-users-cog', label: 'نقش\u200cها', match: function (p) { return p === 'roles'; } }
+  ];
+
+  function renderAdminNav(containerId, options) {
+    options = options || {};
+    var page = options.page || '';
+    var tab = options.tab || new URLSearchParams(location.search).get('tab') || (page === 'admin' ? 'tab-queue' : '');
+    var container = $(containerId);
+    if (!container) return;
+
+    var html = '<nav class="admin-nav">';
+    ADMIN_NAV_ITEMS.forEach(function (item) {
+      if (item.sep) {
+        html += '<span class="admin-nav-sep" aria-hidden="true"></span>';
+        return;
+      }
+      var active = item.match(page, tab) ? ' active' : '';
+      html += '<a href="' + item.href + '" class="' + active.trim() + '"><i class="fas ' + item.icon + '"></i>' + item.label + '</a>';
+    });
+    html += '</nav>';
+    container.innerHTML = html;
+
+    var activeLink = container.querySelector('.admin-nav a.active');
+    if (activeLink && activeLink.scrollIntoView) {
+      activeLink.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+    }
+  }
+
+  function logout() {
+    ['gl_userId', 'gl_fullName', 'gl_roleId', 'gl_roleName', 'gl_userStatus'].forEach(function (key) {
+      localStorage.removeItem(key);
+    });
+    location.href = 'index.html';
+  }
+
+  function getMobileNavItems() {
+    var loggedIn = getUserId() > 0;
+    var items = [
+      { href: 'index.html', icon: 'fa-home', label: 'خانه', match: ['index.html', ''] },
+      { href: 'panel.html', icon: 'fa-th-large', label: 'پنل عضو', match: ['panel.html'] },
+      { href: 'profile.html', icon: 'fa-id-card', label: 'پروفایل', match: ['profile.html'] }
+    ];
+    if (loggedIn) {
+      items.push({ action: 'logout', icon: 'fa-sign-out-alt', label: 'خروج', match: [] });
+    } else {
+      items.push({ href: 'login.html', icon: 'fa-sign-in-alt', label: 'ورود', match: ['login.html', 'register.html'] });
+    }
+    return items;
+  }
+
+  function renderMobileNav() {
+    if (window.matchMedia('(min-width: 769px)').matches) return;
+
+    var page = (location.pathname.split('/').pop() || 'index.html').toLowerCase();
+    if (page === 'admin.html' || page === 'reports.html' || page === 'roles.html') return;
+
+    document.body.classList.add('has-mobile-nav');
+
+    var existing = document.querySelector('.mobile-bottom-nav');
+    if (existing) existing.remove();
+
+    var nav = document.createElement('nav');
+    nav.className = 'mobile-bottom-nav';
+    nav.setAttribute('aria-label', 'منوی اصلی موبایل');
+    nav.innerHTML = getMobileNavItems().map(function (item) {
+      var active = item.match.indexOf(page) >= 0 ? ' active' : '';
+      if (item.action === 'logout') {
+        return '<button type="button" class="mobile-nav-logout' + active + '" data-action="logout"><i class="fas ' + item.icon + '"></i><span>' + item.label + '</span></button>';
+      }
+      return '<a href="' + item.href + '" class="' + active.trim() + '"><i class="fas ' + item.icon + '"></i><span>' + item.label + '</span></a>';
+    }).join('');
+
+    nav.addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-action="logout"]');
+      if (btn) {
+        e.preventDefault();
+        logout();
+      }
+    });
+
+    document.body.appendChild(nav);
+  }
+
+  function scrollActiveTabIntoView() {
+    var activeBtn = document.querySelector('.tab-menu .tab-btn.active');
+    if (activeBtn && activeBtn.scrollIntoView) {
+      activeBtn.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+    }
   }
 
   async function applyUserMenus(containerSelector) {
@@ -726,6 +820,9 @@ window.GoodLoan = (function () {
 
     normalizeApi: normalizeApi,
     applyUserMenus: applyUserMenus,
+    renderAdminNav: renderAdminNav,
+    renderMobileNav: renderMobileNav,
+    logout: logout,
     toEnglishDigits: toEnglishDigits,
     initPageTables: initPageTables,
     refreshDataTable: refreshDataTable,
@@ -733,5 +830,9 @@ window.GoodLoan = (function () {
   };
 
 })();
+
+GoodLoan.ready(function () {
+  GoodLoan.renderMobileNav();
+});
 
 

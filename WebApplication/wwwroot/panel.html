@@ -2,7 +2,7 @@
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>پنل اعضا | صندوق قرض‌الحسنه امام رضا (ع)</title>
   <link rel="stylesheet" href="css/site.css" />
   <link rel="icon" href="images/logo.png" />
@@ -17,10 +17,10 @@
           <span>پنل اعضا</span>
         </div>
       </a>
-      <div class="nav">
+      <div class="nav" id="panelTopNav">
         <a href="index.html"><i class="fas fa-home"></i>خانه</a>
         <a href="profile.html"><i class="fas fa-id-card"></i>پروفایل</a>
-        <a href="login.html"><i class="fas fa-sign-out-alt"></i>ورود</a>
+        <a href="#" id="panelAuthLink"><i class="fas fa-sign-out-alt"></i>خروج</a>
       </div>
     </div>
 
@@ -39,7 +39,7 @@
         <div class="stats" id="stats"></div>
       </div>
 
-      <div class="tab-menu" id="memberTabMenu">
+      <div class="tab-menu member-subnav" id="memberTabMenu">
         <button type="button" class="tab-btn" data-tab="tab-loan" id="btnTabLoan"><i class="fas fa-hand-holding-usd"></i>درخواست وام</button>
         <button type="button" class="tab-btn" data-tab="tab-pay"><i class="fas fa-credit-card"></i>پرداخت آنلاین</button>
         <button type="button" class="tab-btn" data-tab="tab-manual"><i class="fas fa-file-invoice-dollar"></i>پرداخت دستی</button>
@@ -120,6 +120,11 @@
       G.initTabs('tab-installments');
       G.bindAmountInputs('.amount-input');
       G.initPageTables('#panelContent');
+
+      G.bindClick('panelAuthLink', function (e) {
+        e.preventDefault();
+        G.logout();
+      });
 
       function installmentRowClass(item) {
         const isPaid = Number(G.pick(item, 'installmentStatus')) === 1;

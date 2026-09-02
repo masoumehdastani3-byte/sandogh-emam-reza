@@ -50,6 +50,60 @@ namespace Services
             };
         }
 
+        public async Task<ManagementReportDto> GetManagementReportAsync(CancellationToken cancellationToken = default)
+        {
+            var now = DateTime.Now;
+            var pc = new System.Globalization.PersianCalendar();
+            var currentYear = pc.GetYear(now);
+            var currentMonth = pc.GetMonth(now);
+
+            var loans = (await _repositoryManager.LoanRepository.GetAllAsync(cancellationToken)).ToList();
+            var disbursedLoans = loans
+                .Where(l => l.LoanRequestStatus == (byte)LoanRequestStatus.Disbursed)
+                .ToList();
+            var debtorLoans = disbursedLoans
+                .Where(l => l.LoanStatus != (byte)LoanStatus.Cleared && (l.RemainAmount ?? 0) > 0)
+                .ToList();
+
+            var transactions = (await _repositoryManager.FundTransactionRepository.GetAllAsync(cancellationToken))
+                .Where(t => t.Active != false && t.Amount > 0)
+                .ToList();
+
+            var monthlyInflows = transactions
+                .GroupBy(t =>
+                {
+                    var date = t.TransactionDate;
+                    return new { Year = pc.GetYear(date), Month = pc.GetMonth(date) };
+                })
+                .Select(g => new MonthlyFundInflowDto
+                {
+                    Year = g.Key.Year,
+                    Month = g.Key.Month,
+                    MonthLabel = $"{g.Key.Year:0000}/{g.Key.Month:00}",
+                    TotalAmount = g.Sum(t => t.Amount),
+                    TransactionCount = g.Count()
+                })
+                .OrderByDescending(m => m.Year)
+                .ThenByDescending(m => m.Month)
+                .ToList();
+
+            var currentMonthInflow = transactions
+                .Where(t => pc.GetYear(t.TransactionDate) == currentYear && pc.GetMonth(t.TransactionDate) == currentMonth)
+                .Sum(t => t.Amount);
+
+            return new ManagementReportDto
+            {
+                FundBalance = await _repositoryManager.FundTransactionRepository.GetCurrentBalanceAsync(cancellationToken),
+                DebtorLoansCount = debtorLoans.Count,
+                TotalDebtAmount = debtorLoans.Sum(l => l.RemainAmount ?? 0),
+                DisbursedLoansCount = disbursedLoans.Count,
+                TotalDisbursedAmount = disbursedLoans.Sum(l => l.LoanAmount),
+                CurrentMonthInflow = currentMonthInflow,
+                ReportDate_Shamsi = PersianDateHelper.ToShamsi(now),
+                MonthlyInflows = monthlyInflows
+            };
+        }
+
         public async Task<ApiResultDto> DepositFundAsync(FundDepositDto dto, CancellationToken cancellationToken = default)
         {
             if (!await IsManagerAsync(dto.ManagerUserId, cancellationToken))

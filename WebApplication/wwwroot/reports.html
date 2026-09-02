@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>گزارش مدیریتی | صندوق قرض‌الحسنه امام رضا (ع)</title>
+  <link rel="stylesheet" href="css/site.css" />
+  <link rel="icon" href="images/logo.png" />
+  <style>
+    .report-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+    .report-header p { margin: 0; color: var(--muted); }
+    .report-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+    .report-card {
+      border: 1px solid var(--line);
+      border-radius: .75rem;
+      padding: 1rem 1.1rem;
+      background: #fff;
+    }
+    .report-card .label { color: var(--muted); font-size: .9rem; display: block; margin-bottom: .35rem; }
+    .report-card .value { font-size: 1.35rem; font-weight: 700; color: var(--brand-green-dark, #1f6b3f); }
+    .report-card .sub { color: var(--muted); font-size: .82rem; margin-top: .35rem; display: block; }
+    @media print {
+      .site-header .nav, .admin-nav-bar, .no-print { display: none !important; }
+      .page { max-width: none; }
+      .card { box-shadow: none; border: 1px solid #ddd; }
+    }
+  </style>
+</head>
+<body class="admin-page">
+  <div class="page">
+    <div class="site-header">
+      <a class="brand-lockup" href="index.html">
+        <img src="images/logo.png" alt="لوگو" />
+        <div class="titles">
+          <strong>صندوق قرض‌الحسنه امام رضا (ع)</strong>
+          <span>گزارش مدیریتی</span>
+        </div>
+      </a>
+      <div class="nav">
+        <a href="index.html"><i class="fas fa-home"></i>خانه</a>
+        <a href="panel.html"><i class="fas fa-th-large"></i>پنل عضو</a>
+      </div>
+    </div>
+
+    <div id="adminNavBar" class="admin-nav-bar no-print"></div>
+
+    <div id="accessDenied" class="card" style="display:none">
+      <h2><i class="fas fa-lock icon-green"></i>دسترسی مجاز نیست</h2>
+      <p>این صفحه فقط برای مدیر صندوق است.</p>
+      <a class="btn primary" href="login.html?return=reports.html">ورود مدیر</a>
+    </div>
+
+    <div id="reportContent" style="display:none">
+      <div class="card">
+        <div class="report-header">
+          <div>
+            <h2 style="margin:0"><i class="fas fa-chart-pie icon-green"></i>گزارش مدیریتی صندوق</h2>
+            <p id="reportDate">تاریخ گزارش: —</p>
+          </div>
+          <div class="actions no-print">
+            <button type="button" class="btn dark" id="btnRefresh"><i class="fas fa-sync"></i>بروزرسانی</button>
+            <button type="button" class="btn primary" id="btnPrint"><i class="fas fa-print"></i>چاپ گزارش</button>
+          </div>
+        </div>
+
+        <div class="report-summary" id="reportSummary"></div>
+      </div>
+
+      <div class="card">
+        <h3><i class="fas fa-calendar-alt icon-green"></i>ورودی‌های ماهانه صندوق</h3>
+        <p class="lead" style="color:var(--muted);margin-top:0">مجموع واریزی‌ها، اقساط دریافتی و شارژهای دستی ثبت‌شده در دفتر صندوق (به تفکیک ماه شمسی).</p>
+        <div style="overflow:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>ماه</th>
+                <th>تعداد تراکنش</th>
+                <th>جمع ورودی (ریال)</th>
+              </tr>
+            </thead>
+            <tbody id="monthlyBody"></tbody>
+            <tfoot>
+              <tr id="monthlyTotalRow" style="display:none;font-weight:700;background:var(--brand-green-soft,#f0faf4)">
+                <td>جمع کل</td>
+                <td id="totalTxCount">0</td>
+                <td class="amount" id="totalInflow">0</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="js/app.js"></script>
+  <script>
+    GoodLoan.ready(async function () {
+      const G = GoodLoan;
+      const managerId = await G.requireManager();
+      if (!managerId) {
+        G.$('accessDenied').style.display = 'block';
+        return;
+      }
+
+      G.$('reportContent').style.display = 'block';
+      G.renderAdminNav('adminNavBar', { page: 'reports' });
+      G.initPageTables('#reportContent');
+
+      async function loadReport() {
+        const result = await G.get('/api/admin/reports/management?managerUserId=' + managerId);
+        if (!result.res.ok) return;
+
+        const r = G.payload(result) || {};
+        const monthLabel = G.pick(r, 'reportDate_Shamsi') || '';
+        G.$('reportDate').textContent = 'تاریخ گزارش: ' + monthLabel;
+
+        G.$('reportSummary').innerHTML = `
+          <div class="report-card">
+            <span class="label"><i class="fas fa-wallet"></i> موجودی / سرمایه صندوق</span>
+            <span class="value">${G.money(G.pick(r, 'fundBalance'))}</span>
+            <span class="sub">مانده لحظه‌ای دفتر صندوق</span>
+          </div>
+          <div class="report-card">
+            <span class="label"><i class="fas fa-hand-holding-usd"></i> تعداد وام‌های بدهکار</span>
+            <span class="value">${G.formatNumber(G.pick(r, 'debtorLoansCount') || 0)}</span>
+            <span class="sub">جمع بدهی باقی‌مانده: ${G.money(G.pick(r, 'totalDebtAmount'))}</span>
+          </div>
+          <div class="report-card">
+            <span class="label"><i class="fas fa-file-invoice-dollar"></i> تعداد وام‌های پرداخت‌شده</span>
+            <span class="value">${G.formatNumber(G.pick(r, 'disbursedLoansCount') || 0)}</span>
+            <span class="sub">جمع مبالغ پرداخت‌شده: ${G.money(G.pick(r, 'totalDisbursedAmount'))}</span>
+          </div>
+          <div class="report-card">
+            <span class="label"><i class="fas fa-arrow-down"></i> ورودی ماه جاری</span>
+            <span class="value">${G.money(G.pick(r, 'currentMonthInflow'))}</span>
+            <span class="sub">واریزی‌ها و دریافتی‌های ماه شمسی جاری</span>
+          </div>`;
+
+        const monthly = G.pick(r, 'monthlyInflows') || [];
+        let totalAmount = 0;
+        let totalCount = 0;
+
+        G.$('monthlyBody').innerHTML = monthly.length ? monthly.map(function (m) {
+          const amount = Number(G.pick(m, 'totalAmount') || 0);
+          const count = Number(G.pick(m, 'transactionCount') || 0);
+          totalAmount += amount;
+          totalCount += count;
+          return '<tr><td>' + (G.pick(m, 'monthLabel') || '') + '</td><td>' + G.formatNumber(count) + '</td><td class="amount">' + G.money(amount) + '</td></tr>';
+        }).join('') : '<tr><td colspan="3">تراکنش ورودی ثبت نشده</td></tr>';
+
+        if (monthly.length) {
+          G.$('monthlyTotalRow').style.display = '';
+          G.$('totalTxCount').textContent = G.formatNumber(totalCount);
+          G.$('totalInflow').textContent = G.money(totalAmount);
+        } else {
+          G.$('monthlyTotalRow').style.display = 'none';
+        }
+
+        G.refreshDataTable('monthlyBody');
+      }
+
+      G.bindClick('btnRefresh', loadReport);
+      G.bindClick('btnPrint', function () { window.print(); });
+
+      loadReport();
+    });
+  </script>
+</body>
+</html>

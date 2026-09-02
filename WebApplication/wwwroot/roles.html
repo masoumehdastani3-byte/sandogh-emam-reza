@@ -2,7 +2,7 @@
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>نقش‌ها و دسترسی منو | صندوق قرض‌الحسنه امام رضا (ع)</title>
   <link rel="stylesheet" href="css/site.css" />
   <link rel="icon" href="images/logo.png" />
@@ -27,7 +27,7 @@
     .menu-check span { color: var(--muted); font-size: .82rem; }
   </style>
 </head>
-<body>
+<body class="admin-page">
   <div class="page">
     <div class="site-header">
       <a class="brand-lockup" href="index.html">
@@ -38,10 +38,12 @@
         </div>
       </a>
       <div class="nav">
-        <a href="admin.html"><i class="fas fa-user-shield"></i>مدیریت صندوق</a>
         <a href="index.html"><i class="fas fa-home"></i>خانه</a>
+        <a href="panel.html"><i class="fas fa-th-large"></i>پنل عضو</a>
       </div>
     </div>
+
+    <div id="adminNavBar" class="admin-nav-bar"></div>
 
     <div id="accessDenied" class="card" style="display:none">
       <h2><i class="fas fa-lock icon-green"></i>دسترسی مجاز نیست</h2>
@@ -50,7 +52,7 @@
     </div>
 
     <div id="rolesContent" style="display:none">
-      <div class="tab-menu">
+      <div class="tab-menu admin-subnav">
         <button type="button" class="tab-btn" data-tab="tab-roles"><i class="fas fa-users-cog"></i>نقش‌ها و دسترسی</button>
         <button type="button" class="tab-btn" data-tab="tab-menus"><i class="fas fa-bars"></i>تعریف منو</button>
       </div>
@@ -108,6 +110,7 @@
       }
 
       G.$('rolesContent').style.display = 'block';
+      G.renderAdminNav('adminNavBar', { page: 'roles' });
       G.initTabs('tab-roles');
       G.initPageTables('#rolesContent');
 

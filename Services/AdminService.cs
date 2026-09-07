@@ -236,5 +236,54 @@ namespace Services
             await _repositoryManager.UnitOfWork.SaveChangesAsync(cancellationToken);
             return ApiResultDto.Ok("تنظیم ذخیره شد", _mapper.Map<SettingDto>(setting));
         }
+
+        public async Task<List<UserDto>> GetMembersAsync(CancellationToken cancellationToken = default)
+        {
+            var users = (await _repositoryManager.UserRepository.GetAllAsync(cancellationToken))
+                .OrderByDescending(u => u.CreateDate)
+                .ThenBy(u => u.UserId)
+                .ToList();
+
+            var dtos = _mapper.Map<List<UserDto>>(users);
+            foreach (var dto in dtos)
+                dto.Password = null;
+            return dtos;
+        }
+
+        public async Task<ApiResultDto> UpdateMemberAsync(AdminUpdateMemberDto dto, CancellationToken cancellationToken = default)
+        {
+            if (dto == null || dto.UserId <= 0)
+                return ApiResultDto.Fail("شناسه عضو نامعتبر است");
+
+            if (!await IsManagerAsync(dto.ManagerUserId, cancellationToken))
+                return ApiResultDto.Fail("فقط مدیر صندوق مجاز است");
+
+            var user = await _repositoryManager.UserRepository.GetByUserIdAsync(dto.UserId, cancellationToken);
+            if (user == null)
+                return ApiResultDto.Fail("عضو یافت نشد");
+
+            if (dto.Active.HasValue)
+            {
+                if (dto.UserId == dto.ManagerUserId && dto.Active.Value == false)
+                    return ApiResultDto.Fail("نمی‌توانید حساب خودتان را غیرفعال کنید");
+
+                user.Active = dto.Active.Value;
+                user.UserActiveType = dto.Active.Value
+                    ? (byte)UserActiveType.Active
+                    : (byte)UserActiveType.Blocked;
+            }
+
+            if (dto.UpdateDescription)
+                user.Description = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description.Trim();
+
+            user.UpdateDate = DateTime.Now;
+            user.ModifyUserId = dto.ManagerUserId;
+            _repositoryManager.UserRepository.Update(user);
+            await _repositoryManager.UnitOfWork.SaveChangesAsync(cancellationToken);
+
+            var result = _mapper.Map<UserDto>(user);
+            result.Password = null;
+            return ApiResultDto.Ok("اطلاعات عضو به‌روزرسانی شد", result);
+        }
     }
 }

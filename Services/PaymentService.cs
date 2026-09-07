@@ -1,5 +1,6 @@
 using AutoMapper;
 using Contracts.Enums;
+using Contracts.Helpers;
 using Contracts.Models;
 using Domain.Entities;
 using Domain.Repositories;
@@ -38,12 +39,37 @@ namespace Services
 
         public async Task<ApiResultDto> StartZarinPalPaymentAsync(ZarinPalRequestDto dto, CancellationToken cancellationToken = default)
         {
+            if (dto == null)
+                return ApiResultDto.Fail("درخواست نامعتبر است");
+
+            if (!string.IsNullOrWhiteSpace(dto.PayToken))
+            {
+                var resolved = await ResolvePayTokenAsync(dto.PayToken, cancellationToken);
+                if (!resolved.Success)
+                    return resolved;
+
+                var info = (InstallmentPayLinkInfo)resolved.Data;
+                dto.UserId = info.UserId;
+                dto.InstallmentId = info.InstallmentId;
+                dto.Amount = info.InstallmentAmount;
+                dto.PaymentType = (byte)PaymentType.Installment;
+                if (string.IsNullOrWhiteSpace(dto.Description))
+                    dto.Description = $"پرداخت قسط شماره {info.InstallmentId}";
+            }
+
             var user = await _repositoryManager.UserRepository.GetByUserIdAsync(dto.UserId, cancellationToken);
             if (user == null)
                 return ApiResultDto.Fail("کاربر یافت نشد");
 
+            if (user.Active != true)
+                return ApiResultDto.Fail("حساب کاربری غیرفعال است");
+
             if (dto.Amount <= 0)
                 return ApiResultDto.Fail("مبلغ نامعتبر است");
+
+            long gatewayAmount = dto.Amount;
+            long gatewayFee = 0;
+            string description = dto.Description;
 
             if (dto.PaymentType == (byte)PaymentType.Installment)
             {
@@ -59,6 +85,13 @@ namespace Services
                     return ApiResultDto.Fail("قسط متعلق به این کاربر نیست");
                 if (dto.Amount != installment.InstallmentAmount)
                     return ApiResultDto.Fail("مبلغ پرداخت باید برابر مبلغ قسط باشد");
+
+                var payable = ZarinPalFeeHelper.CalculatePayable(installment.InstallmentAmount);
+                gatewayAmount = payable.PayableAmount;
+                gatewayFee = payable.FeeAmount;
+                description = (dto.Description ?? $"پرداخت قسط شماره {installment.InstallmentId}")
+                    + $" | مبلغ قسط: {installment.InstallmentAmount:N0} ریال"
+                    + $" | کارمزد درگاه: {gatewayFee:N0} ریال";
             }
             else if (dto.PaymentType != (byte)PaymentType.Donation)
             {
@@ -75,7 +108,8 @@ namespace Services
             {
                 UserId = dto.UserId,
                 InstallmentId = dto.InstallmentId,
-                Amount = dto.Amount,
+                Amount = gatewayAmount,
+                GatewayFeeAmount = gatewayFee,
                 PaymentDate = now,
                 PaymentDate_Shamsi = PersianDateHelper.ToShamsi(now),
                 PaymentStatus = (byte)PaymentStatus.Receipt,
@@ -83,7 +117,7 @@ namespace Services
                 PaymentMethod = (byte)PaymentMethod.ZarinPal,
                 GatewayStatus = (byte)GatewayStatus.Pending,
                 Confirm = false,
-                Description = dto.Description,
+                Description = description,
                 CreateDate = now,
                 Active = true
             };
@@ -92,8 +126,8 @@ namespace Services
             await _repositoryManager.UnitOfWork.SaveChangesAsync(cancellationToken);
 
             var request = await _zarinPalService.RequestPaymentAsync(
-                dto.Amount,
-                dto.Description ?? $"پرداخت صندوق قرض‌الحسنه - کاربر {user.UserId}",
+                gatewayAmount,
+                description ?? $"پرداخت صندوق قرض‌الحسنه - کاربر {user.UserId}",
                 callback,
                 user.Mobile,
                 cancellationToken);
@@ -115,8 +149,58 @@ namespace Services
             {
                 payment.PaymentId,
                 Authority = request.Authority,
-                GatewayUrl = request.GatewayUrl
+                GatewayUrl = request.GatewayUrl,
+                Amount = gatewayAmount,
+                GatewayFeeAmount = gatewayFee,
+                BaseAmount = dto.Amount
             });
+        }
+
+        public async Task<ApiResultDto> GetInstallmentPayLinkAsync(string payToken, CancellationToken cancellationToken = default)
+        {
+            return await ResolvePayTokenAsync(payToken, cancellationToken);
+        }
+
+        private async Task<ApiResultDto> ResolvePayTokenAsync(string payToken, CancellationToken cancellationToken)
+        {
+            var signingKey = _configuration["App:LinkSigningKey"] ?? _configuration["ZarinPal:MerchantId"];
+            if (!SecureLinkHelper.TryParseInstallmentPayToken(payToken, signingKey, out var installmentId, out var userId, out var error))
+                return ApiResultDto.Fail(error);
+
+            var installment = await _repositoryManager.InstallmentRepository.GetByInstallmentIdAsync(installmentId, cancellationToken);
+            if (installment == null)
+                return ApiResultDto.Fail("قسط یافت نشد");
+            if (installment.InstallmentStatus == (byte)InstallmentStatus.Cleared)
+                return ApiResultDto.Fail("این قسط قبلاً پرداخت شده است");
+            if (installment.Loan?.UserId != userId)
+                return ApiResultDto.Fail("لینک پرداخت متعلق به این قسط نیست");
+
+            var user = await _repositoryManager.UserRepository.GetByUserIdAsync(userId, cancellationToken);
+            if (user == null || user.Active != true)
+                return ApiResultDto.Fail("حساب کاربری یافت نشد یا غیرفعال است");
+
+            var payable = ZarinPalFeeHelper.CalculatePayable(installment.InstallmentAmount);
+            return ApiResultDto.Ok("OK", new InstallmentPayLinkInfo
+            {
+                UserId = userId,
+                InstallmentId = installment.InstallmentId,
+                InstallmentAmount = installment.InstallmentAmount,
+                GatewayFeeAmount = payable.FeeAmount,
+                PayableAmount = payable.PayableAmount,
+                DueDate_Shamsi = installment.InstallmentDate_shansi,
+                MemberName = user.FullName
+            });
+        }
+
+        private sealed class InstallmentPayLinkInfo
+        {
+            public int UserId { get; set; }
+            public int InstallmentId { get; set; }
+            public long InstallmentAmount { get; set; }
+            public long GatewayFeeAmount { get; set; }
+            public long PayableAmount { get; set; }
+            public string DueDate_Shamsi { get; set; }
+            public string MemberName { get; set; }
         }
 
         public async Task<ApiResultDto> VerifyZarinPalPaymentAsync(string authority, string status, CancellationToken cancellationToken = default)
@@ -179,6 +263,7 @@ namespace Services
                 UserId = dto.UserId,
                 InstallmentId = dto.InstallmentId,
                 Amount = dto.Amount,
+                GatewayFeeAmount = 0,
                 PaymentDate = now,
                 PaymentDate_Shamsi = PersianDateHelper.ToShamsi(now),
                 PaymentStatus = (byte)PaymentStatus.Receipt,
@@ -209,6 +294,9 @@ namespace Services
         {
             var now = DateTime.Now;
             var balance = await _repositoryManager.FundTransactionRepository.GetCurrentBalanceAsync(cancellationToken);
+            // مبلغ خالص صندوق = مبلغ درگاه منهای کارمزد زرین‌پال
+            var netAmount = payment.Amount - payment.GatewayFeeAmount;
+            if (netAmount < 0) netAmount = 0;
 
             if (payment.PaymentType == (byte)PaymentType.Installment && payment.InstallmentId.HasValue)
             {
@@ -225,7 +313,9 @@ namespace Services
                     var loan = await _repositoryManager.LoanRepository.GetByLoanIdAsync(installment.LoanId, cancellationToken);
                     if (loan != null)
                     {
-                        loan.RemainAmount = (loan.RemainAmount ?? loan.LoanAmount) - payment.Amount;
+                        // کاهش بدهی وام فقط به اندازه مبلغ قسط (نه کارمزد درگاه)
+                        var installmentNet = installment.InstallmentAmount;
+                        loan.RemainAmount = (loan.RemainAmount ?? loan.LoanAmount) - installmentNet;
                         if (loan.RemainAmount < 0) loan.RemainAmount = 0;
 
                         var all = (await _repositoryManager.InstallmentRepository.GetByLoanIdAsync(loan.LoanId, cancellationToken)).ToList();
@@ -240,13 +330,15 @@ namespace Services
                 _repositoryManager.FundTransactionRepository.Insert(new FundTransaction
                 {
                     TransactionType = (byte)FundTransactionType.InstallmentIn,
-                    Amount = payment.Amount,
-                    BalanceAfter = balance + payment.Amount,
+                    Amount = netAmount,
+                    BalanceAfter = balance + netAmount,
                     UserId = payment.UserId,
                     PaymentId = payment.PaymentId,
                     TransactionDate = now,
                     TransactionDate_Shamsi = PersianDateHelper.ToShamsi(now),
-                    Description = "دریافت قسط وام",
+                    Description = payment.GatewayFeeAmount > 0
+                        ? $"دریافت قسط وام (کارمزد درگاه {payment.GatewayFeeAmount:N0} ریال از مبلغ پرداخت‌شده کسر شده)"
+                        : "دریافت قسط وام",
                     CreateDate = now,
                     Active = true
                 });
@@ -260,8 +352,8 @@ namespace Services
                 _repositoryManager.FundTransactionRepository.Insert(new FundTransaction
                 {
                     TransactionType = (byte)txType,
-                    Amount = payment.Amount,
-                    BalanceAfter = balance + payment.Amount,
+                    Amount = netAmount,
+                    BalanceAfter = balance + netAmount,
                     UserId = payment.UserId,
                     PaymentId = payment.PaymentId,
                     TransactionDate = now,

@@ -165,7 +165,7 @@ window.GoodLoan = (function () {
     if (options.showPaymentDate) html += '<td>' + shamsiDate(loan, 'paymentDate_Shamsi', 'paymentDate') + '</td>';
     if (options.showStatus) html += '<td>' + loanStatusText(loan) + '</td>';
     if (options.showActions) {
-      html += '<td class="actions"><button type="button" class="btn primary btn-disburse" data-id="' + loanId + '">پرداخت</button> ' +
+      html += '<td class="actions"><button type="button" class="btn primary btn-disburse" data-id="' + loanId + '">تایید و پرداخت</button> ' +
         '<button type="button" class="btn dark btn-reject" data-id="' + loanId + '">رد</button></td>';
     }
     html += '</tr>';
@@ -468,12 +468,13 @@ window.GoodLoan = (function () {
 
   var ADMIN_NAV_ITEMS = [
     { href: 'admin.html?tab=tab-manage', icon: 'fa-cogs', label: 'مدیریت صندوق', match: function (p, t) { return p === 'admin' && (!t || t === 'tab-manage'); } },
-    { href: 'admin.html?tab=tab-fund-deposit', icon: 'fa-piggy-bank', label: 'شارژ صندوق', match: function (p, t) { return p === 'admin' && t === 'tab-fund-deposit'; } },
-    { href: 'admin.html?tab=tab-reminders', icon: 'fa-bell', label: 'یادآوری\u200cها', match: function (p, t) { return p === 'admin' && t === 'tab-reminders'; } },
-    { href: 'admin.html?tab=tab-installments-report', icon: 'fa-calendar-exclamation', label: 'گزارش اقساط', match: function (p, t) { return p === 'admin' && t === 'tab-installments-report'; } },
     { href: 'admin.html?tab=tab-queue', icon: 'fa-stream', label: 'صف وام', match: function (p, t) { return p === 'admin' && t === 'tab-queue'; } },
+    { href: 'admin.html?tab=tab-installments-report', icon: 'fa-calendar-exclamation', label: 'گزارش اقساط', match: function (p, t) { return p === 'admin' && t === 'tab-installments-report'; } },
     { href: 'admin.html?tab=tab-loans', icon: 'fa-file-invoice', label: 'همه وام\u200cها', match: function (p, t) { return p === 'admin' && t === 'tab-loans'; } },
+    { href: 'admin.html?tab=tab-members', icon: 'fa-users', label: 'اعضا', match: function (p, t) { return p === 'admin' && t === 'tab-members'; } },
+    { href: 'admin.html?tab=tab-reminders', icon: 'fa-bell', label: 'یادآوری\u200cها', match: function (p, t) { return p === 'admin' && t === 'tab-reminders'; } },
     { href: 'admin.html?tab=tab-deposits', icon: 'fa-money-check-alt', label: 'واریزی\u200cها', match: function (p, t) { return p === 'admin' && t === 'tab-deposits'; } },
+    { href: 'admin.html?tab=tab-fund-deposit', icon: 'fa-piggy-bank', label: 'شارژ صندوق', match: function (p, t) { return p === 'admin' && t === 'tab-fund-deposit'; } },
     { href: 'admin.html?tab=tab-ledger', icon: 'fa-book', label: 'دفتر صندوق', match: function (p, t) { return p === 'admin' && t === 'tab-ledger'; } },
     { href: 'admin.html?tab=tab-settings', icon: 'fa-sliders-h', label: 'تنظیمات', match: function (p, t) { return p === 'admin' && t === 'tab-settings'; } },
     { sep: true },
@@ -506,6 +507,43 @@ window.GoodLoan = (function () {
     }
   }
 
+  function initStatsCollapse(selector) {
+    var nodes = typeof selector === 'string'
+      ? document.querySelectorAll(selector)
+      : (selector ? [selector] : []);
+    if (!nodes.length) return;
+
+    var mq = window.matchMedia('(max-width: 768px)');
+    function apply(el) {
+      if (!el || el.tagName !== 'DETAILS') return;
+      el.open = !mq.matches;
+      var hint = el.querySelector('.stats-collapse-hint');
+      if (hint) {
+        hint.innerHTML = el.open
+          ? 'برای بستن بزنید <i class="fas fa-chevron-down stats-collapse-chevron"></i>'
+          : 'برای مشاهده آمار بزنید <i class="fas fa-chevron-down stats-collapse-chevron"></i>';
+      }
+    }
+
+    Array.prototype.forEach.call(nodes, function (el) {
+      apply(el);
+      el.addEventListener('toggle', function () {
+        if (!mq.matches) return;
+        var hint = el.querySelector('.stats-collapse-hint');
+        if (!hint) return;
+        hint.innerHTML = el.open
+          ? 'برای بستن بزنید <i class="fas fa-chevron-down stats-collapse-chevron"></i>'
+          : 'برای مشاهده آمار بزنید <i class="fas fa-chevron-down stats-collapse-chevron"></i>';
+      });
+    });
+
+    function onChange() {
+      Array.prototype.forEach.call(nodes, apply);
+    }
+    if (mq.addEventListener) mq.addEventListener('change', onChange);
+    else if (mq.addListener) mq.addListener(onChange);
+  }
+
   function logout() {
     ['gl_userId', 'gl_fullName', 'gl_roleId', 'gl_roleName', 'gl_userStatus'].forEach(function (key) {
       localStorage.removeItem(key);
@@ -515,15 +553,17 @@ window.GoodLoan = (function () {
 
   function getMobileNavItems() {
     var loggedIn = getUserId() > 0;
-    var items = [
-      { href: 'index.html', icon: 'fa-home', label: 'خانه', match: ['index.html', ''] },
-      { href: 'panel.html', icon: 'fa-th-large', label: 'پنل عضو', match: ['panel.html'] },
-      { href: 'profile.html', icon: 'fa-id-card', label: 'پروفایل', match: ['profile.html'] }
-    ];
+    var items = [];
     if (loggedIn) {
+      items.push({ href: 'panel.html', icon: 'fa-th-large', label: 'پنل عضو', match: ['panel.html'] });
+      items.push({ href: 'profile.html', icon: 'fa-id-card', label: 'پروفایل', match: ['profile.html'] });
+      items.push({ href: 'index.html', icon: 'fa-home', label: 'خانه', match: ['index.html', ''] });
       items.push({ action: 'logout', icon: 'fa-sign-out-alt', label: 'خروج', match: [] });
     } else {
+      items.push({ href: 'index.html', icon: 'fa-home', label: 'خانه', match: ['index.html', ''] });
       items.push({ href: 'login.html', icon: 'fa-sign-in-alt', label: 'ورود', match: ['login.html', 'register.html'] });
+      items.push({ href: 'panel.html', icon: 'fa-th-large', label: 'پنل عضو', match: ['panel.html'] });
+      items.push({ href: 'founders.html', icon: 'fa-users', label: 'بنیان‌گذاران', match: ['founders.html'] });
     }
     return items;
   }
@@ -826,6 +866,7 @@ window.GoodLoan = (function () {
     applyUserMenus: applyUserMenus,
     renderAdminNav: renderAdminNav,
     renderMobileNav: renderMobileNav,
+    initStatsCollapse: initStatsCollapse,
     logout: logout,
     toEnglishDigits: toEnglishDigits,
     initPageTables: initPageTables,

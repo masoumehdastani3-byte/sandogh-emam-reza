@@ -24,6 +24,12 @@ namespace Persistence.Repositories
                 .OrderByDescending(a => a.LoginOtpId)
                 .FirstOrDefaultAsync(cancellationToken);
 
+        public async Task<LoginOtp> GetActiveByLoginTokenHashAsync(string loginTokenHash, CancellationToken cancellationToken = default) =>
+            await _dbContext.LoginOtps
+                .Where(a => a.LoginTokenHash == loginTokenHash && !a.IsUsed && a.ExpiresAt > DateTime.Now)
+                .OrderByDescending(a => a.LoginOtpId)
+                .FirstOrDefaultAsync(cancellationToken);
+
         public async Task<int> CountRecentRequestsAsync(string nationalCode, int withinMinutes, CancellationToken cancellationToken = default)
         {
             var since = DateTime.Now.AddMinutes(-withinMinutes);

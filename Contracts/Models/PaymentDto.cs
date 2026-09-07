@@ -18,6 +18,7 @@ namespace Contracts.Models
         public DateTime PaymentDate { get; set; }
         public string PaymentDate_Shamsi { get; set; }
         public long Amount { get; set; }
+        public long GatewayFeeAmount { get; set; }
         public byte PaymentStatus { get; set; }
         public byte PaymentType { get; set; }
         public byte PaymentMethod { get; set; }

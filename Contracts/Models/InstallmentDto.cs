@@ -1,6 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using Contracts.Helpers;
+using System;
 
 namespace Contracts.Models
 {
@@ -16,6 +15,13 @@ namespace Contracts.Models
         public string InstallmentDate_shansi { get; set; }
         public long InstallmentAmount { get; set; }
         public byte InstallmentStatus { get; set; }
+
+        /// <summary>کارمزد درگاه زرین‌پال (ریال) برای پرداخت آنلاین این قسط.</summary>
+        public long GatewayFeeAmount => ZarinPalFeeHelper.GetFeeForBaseAmount(InstallmentAmount);
+
+        /// <summary>مبلغ قسط + کارمزد درگاه که در زرین‌پال پرداخت می‌شود.</summary>
+        public long PayableWithGatewayFee => ZarinPalFeeHelper.GetPayableAmount(InstallmentAmount);
+
         public virtual LoanDto Loan { get; set; }
         public virtual PaymentDto Payment { get; set; }
     }

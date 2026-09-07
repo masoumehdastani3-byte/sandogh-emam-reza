@@ -172,7 +172,7 @@
 
         G.$('btnResendOtp').style.display = 'inline-flex';
 
-        G.$('otpHint').textContent = message || 'کد ۶ رقمی را از پیام بله وارد کنید. اعتبار: ۱۰ دقیقه';
+        G.$('otpHint').textContent = message || 'کد ۶ رقمی را از پیام بله وارد کنید، یا روی لینک یک‌کلیکی داخل همان پیام بزنید. اعتبار: ۱۰ دقیقه';
 
         G.$('otpCode').focus();
 
@@ -208,6 +208,22 @@
         if (nc) G.$('nationalCode').value = G.toEnglishDigits(nc);
         G.showMsg(G.$('msg'), 'عضویت با موفقیت انجام شد. برای ورود، ابتدا ربات بله را Start کنید سپس کد ورود را درخواست دهید.', true);
       }
+
+      async function tryOneClickLogin() {
+        const loginToken = params.get('loginToken');
+        if (!loginToken) return;
+
+        G.showMsg(G.$('msg'), 'در حال ورود خودکار از لینک بله...', true);
+        const { data } = await G.post('/api/user/login/token', { loginToken: loginToken });
+        if (!data.success) {
+          G.showMsg(G.$('msg'), data.message || 'لینک ورود منقضی شده است. دوباره کد ورود درخواست دهید.', false);
+          if (history.replaceState) history.replaceState({}, '', 'login.html' + (params.get('return') ? ('?return=' + encodeURIComponent(params.get('return'))) : ''));
+          return;
+        }
+        afterLogin(data.data);
+      }
+
+      tryOneClickLogin();
 
 
 

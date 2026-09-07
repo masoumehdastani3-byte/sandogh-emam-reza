@@ -21,6 +21,13 @@ namespace Presentation.Controllers
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
+        [HttpGet("installment-link")]
+        public async Task<IActionResult> InstallmentLink([FromQuery] string token, CancellationToken cancellationToken)
+        {
+            var result = await _serviceManager.PaymentService.GetInstallmentPayLinkAsync(token, cancellationToken);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
         [HttpGet("zarinpal/callback")]
         public async Task<IActionResult> ZarinPalCallback([FromQuery] string Authority, [FromQuery] string Status, CancellationToken cancellationToken)
         {

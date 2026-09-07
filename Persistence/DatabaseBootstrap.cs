@@ -91,6 +91,7 @@ BEGIN
         [PaymentDate] datetime2 NOT NULL,
         [PaymentDate_Shamsi] nvarchar(11) NULL,
         [Amount] bigint NOT NULL,
+        [GatewayFeeAmount] bigint NOT NULL DEFAULT(0),
         [PaymentStatus] tinyint NOT NULL,
         [PaymentType] tinyint NOT NULL DEFAULT(1),
         [PaymentMethod] tinyint NOT NULL DEFAULT(2),
@@ -190,6 +191,7 @@ BEGIN
         [UserId] int NOT NULL,
         [NationalCode] nvarchar(10) NOT NULL,
         [OtpHash] nvarchar(128) NOT NULL,
+        [LoginTokenHash] nvarchar(128) NULL,
         [ExpiresAt] datetime2 NOT NULL,
         [AttemptCount] int NOT NULL DEFAULT(0),
         [IsUsed] bit NOT NULL DEFAULT(0),
@@ -197,6 +199,11 @@ BEGIN
         CONSTRAINT [FK_LoginOtp_User] FOREIGN KEY ([UserId]) REFERENCES [dbo].[User]([UserId]) ON DELETE CASCADE
     );
     CREATE INDEX [IX_LoginOtp_NationalCode] ON [dbo].[LoginOtp]([NationalCode], [CreateDate] DESC);
+END
+
+IF OBJECT_ID(N'[dbo].[LoginOtp]', N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH('LoginOtp', 'LoginTokenHash') IS NULL ALTER TABLE [LoginOtp] ADD [LoginTokenHash] nvarchar(128) NULL;
 END
 
 IF OBJECT_ID(N'[dbo].[FundTransaction]', N'U') IS NULL
@@ -292,6 +299,7 @@ BEGIN
     IF COL_LENGTH('Payment', 'GatewayStatus') IS NULL ALTER TABLE [Payment] ADD [GatewayStatus] tinyint NOT NULL CONSTRAINT DF_Payment_GatewayStatus DEFAULT(1);
     IF COL_LENGTH('Payment', 'ZarinPalAuthority') IS NULL ALTER TABLE [Payment] ADD [ZarinPalAuthority] nvarchar(100) NULL;
     IF COL_LENGTH('Payment', 'ZarinPalRefId') IS NULL ALTER TABLE [Payment] ADD [ZarinPalRefId] nvarchar(50) NULL;
+    IF COL_LENGTH('Payment', 'GatewayFeeAmount') IS NULL ALTER TABLE [Payment] ADD [GatewayFeeAmount] bigint NOT NULL CONSTRAINT DF_Payment_GatewayFeeAmount DEFAULT(0);
     IF COL_LENGTH('Payment', 'RefrenceNumber') IS NOT NULL ALTER TABLE [Payment] ALTER COLUMN [RefrenceNumber] nvarchar(50) NULL;
 END
 ");

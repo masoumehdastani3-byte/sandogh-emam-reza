@@ -15,6 +15,7 @@ namespace Services.Abstractions
         Task<ApiResultDto> LoginAsync(LoginDto dto, CancellationToken cancellationToken = default);
         Task<ApiResultDto> RequestLoginOtpAsync(RequestLoginOtpDto dto, CancellationToken cancellationToken = default);
         Task<ApiResultDto> VerifyLoginOtpAsync(VerifyLoginOtpDto dto, CancellationToken cancellationToken = default);
+        Task<ApiResultDto> VerifyLoginTokenAsync(VerifyLoginTokenDto dto, CancellationToken cancellationToken = default);
         Task<ApiResultDto> UpdateProfileAsync(UpdateProfileDto dto, CancellationToken cancellationToken = default);
         Task<ApiResultDto> UploadNationalIdAsync(int userId, string filePath, CancellationToken cancellationToken = default);
         Task<string> Insert(User user, CancellationToken cancellationToken = default);
@@ -38,6 +39,7 @@ namespace Services.Abstractions
     public interface IPaymentService
     {
         Task<ApiResultDto> StartZarinPalPaymentAsync(ZarinPalRequestDto dto, CancellationToken cancellationToken = default);
+        Task<ApiResultDto> GetInstallmentPayLinkAsync(string payToken, CancellationToken cancellationToken = default);
         Task<ApiResultDto> VerifyZarinPalPaymentAsync(string authority, string status, CancellationToken cancellationToken = default);
         Task<ApiResultDto> SubmitManualPaymentAsync(ManualPaymentDto dto, CancellationToken cancellationToken = default);
         Task<List<PaymentDto>> GetByUserIdAsync(int userId, CancellationToken cancellationToken = default);
@@ -77,6 +79,8 @@ namespace Services.Abstractions
         Task<List<FundTransactionDto>> GetFundTransactionsAsync(CancellationToken cancellationToken = default);
         Task<List<SettingDto>> GetSettingsAsync(CancellationToken cancellationToken = default);
         Task<ApiResultDto> UpdateSettingAsync(UpdateSettingDto dto, CancellationToken cancellationToken = default);
+        Task<List<UserDto>> GetMembersAsync(CancellationToken cancellationToken = default);
+        Task<ApiResultDto> UpdateMemberAsync(AdminUpdateMemberDto dto, CancellationToken cancellationToken = default);
     }
 
     public interface IRoleMenuService

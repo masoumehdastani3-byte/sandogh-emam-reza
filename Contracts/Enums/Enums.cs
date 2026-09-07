@@ -59,7 +59,7 @@ namespace Contracts.Enums
     {
         [Description("در صف انتظار")]
         WaitingInQueue = 1,
-        [Description("پرداخت شده")]
+        [Description("تایید و پرداخت‌شده")]
         Disbursed = 2,
         [Description("رد شده")]
         Rejected = 3,

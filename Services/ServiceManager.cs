@@ -31,7 +31,7 @@ namespace Services
             _lazyZarinPalService = new Lazy<IZarinPalService>(() => new ZarinPalService(httpClientFactory, configuration));
             _lazyNationalIdVerifyService = new Lazy<INationalIdVerifyService>(() => new NationalIdVerifyService());
             _lazyBaleService = new Lazy<IBaleService>(() => new BaleService(httpClientFactory, configuration, repositoryManager));
-            _lazyUserService = new Lazy<IUserService>(() => new UserService(repositoryManager, mapper, BaleService, NationalIdVerifyService));
+            _lazyUserService = new Lazy<IUserService>(() => new UserService(repositoryManager, mapper, BaleService, NationalIdVerifyService, configuration));
             _lazy_EnumsService = new Lazy<I_EnumsService>(() => new _EnumsService(repositoryManager));
             _lazyISettingService = new Lazy<ISettingService>(() => new SettingService(repositoryManager, mapper));
             _lazyLoanService = new Lazy<ILoanService>(() => new LoanService(repositoryManager, mapper, BaleService));

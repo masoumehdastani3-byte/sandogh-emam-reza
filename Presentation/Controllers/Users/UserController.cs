@@ -59,6 +59,13 @@ namespace Presentation.Controllers.Users
             return result.Success ? Ok(result) : Unauthorized(result);
         }
 
+        [HttpPost("login/token")]
+        public async Task<IActionResult> VerifyLoginToken([FromBody] VerifyLoginTokenDto dto, CancellationToken cancellationToken)
+        {
+            var result = await _serviceManager.UserService.VerifyLoginTokenAsync(dto, cancellationToken);
+            return result.Success ? Ok(result) : Unauthorized(result);
+        }
+
         [HttpPut("profile")]
         public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileDto dto, CancellationToken cancellationToken)
         {

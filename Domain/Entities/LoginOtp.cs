@@ -8,6 +8,7 @@ namespace Domain.Entities
         public int UserId { get; set; }
         public string NationalCode { get; set; }
         public string OtpHash { get; set; }
+        public string LoginTokenHash { get; set; }
         public DateTime ExpiresAt { get; set; }
         public int AttemptCount { get; set; }
         public bool IsUsed { get; set; }

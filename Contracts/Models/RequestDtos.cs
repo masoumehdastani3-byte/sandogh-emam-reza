@@ -31,6 +31,11 @@ namespace Contracts.Models
         public string OtpCode { get; set; }
     }
 
+    public class VerifyLoginTokenDto
+    {
+        public string LoginToken { get; set; }
+    }
+
     public class UpdateProfileDto
     {
         public int UserId { get; set; }
@@ -75,6 +80,8 @@ namespace Contracts.Models
         public byte PaymentType { get; set; }
         public string Description { get; set; }
         public string CallbackUrl { get; set; }
+        /// <summary>توکن لینک پرداخت از بله؛ در صورت وجود، ورود لازم نیست.</summary>
+        public string PayToken { get; set; }
     }
 
     public class MemberPanelDto
@@ -186,6 +193,15 @@ namespace Contracts.Models
         public long CurrentMonthInflow { get; set; }
         public string ReportDate_Shamsi { get; set; }
         public List<MonthlyFundInflowDto> MonthlyInflows { get; set; }
+    }
+
+    public class AdminUpdateMemberDto
+    {
+        public int ManagerUserId { get; set; }
+        public int UserId { get; set; }
+        public bool? Active { get; set; }
+        public string Description { get; set; }
+        public bool UpdateDescription { get; set; }
     }
 
     public class SaveRoleDto

@@ -80,12 +80,19 @@ namespace Services
             await LogAsync(user.UserId, NotificationType.Password, ok ? NotificationStatus.Sent : NotificationStatus.Failed, msg);
         }
 
-        public async Task<bool> NotifyLoginOtpAsync(User user, string otpCode, CancellationToken cancellationToken = default)
+        public async Task<bool> NotifyLoginOtpAsync(User user, string otpCode, string oneClickLoginLink = null, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(user?.BaleChatId))
                 return false;
 
-            var msg = $"کد ورود یک‌بارمصرف صندوق قرض‌الحسنه:\n{otpCode}\n\nاین کد تا ۱۰ دقیقه معتبر است. آن را با کسی به اشتراک نگذارید.";
+            var msg = $"کد ورود یک‌بارمصرف صندوق قرض‌الحسنه:\n{otpCode}\n\n";
+            if (!string.IsNullOrWhiteSpace(oneClickLoginLink))
+            {
+                msg += "برای ورود سریع بدون تایپ کد، روی لینک زیر بزنید:\n" +
+                       $"{oneClickLoginLink}\n\n";
+            }
+            msg += "این کد/لینک تا ۱۰ دقیقه معتبر است. آن را با کسی به اشتراک نگذارید.";
+
             var ok = await SendMessageAsync(user.BaleChatId, msg, cancellationToken);
             await LogAsync(user.UserId, NotificationType.OtpLogin, ok ? NotificationStatus.Sent : NotificationStatus.Failed, "کد ورود یک‌بارمصرف ارسال شد");
             return ok;
@@ -99,7 +106,7 @@ namespace Services
             var msg = $"{header}\n" +
                       $"مبلغ: {installment.InstallmentAmount:N0} ریال\n" +
                       $"سررسید: {installment.InstallmentDate_shansi}\n\n" +
-                      $"برای پرداخت آنلاین همین قسط روی لینک زیر بزنید:\n{paymentLink}";
+                      $"بدون نیاز به ورود، برای پرداخت آنلاین همین قسط روی لینک زیر بزنید:\n{paymentLink}";
 
             if (string.IsNullOrWhiteSpace(user?.BaleChatId))
                 return await LogAsync(user?.UserId, NotificationType.InstallmentReminder, NotificationStatus.Failed, msg, "کاربر به بله متصل نیست", relatedEntity: "Installment", relatedId: installment.InstallmentId);

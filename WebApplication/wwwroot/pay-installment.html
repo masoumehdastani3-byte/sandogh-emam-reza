@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>پرداخت قسط | صندوق قرض‌الحسنه امام رضا (ع)</title>
+  <link rel="stylesheet" href="css/site.css" />
+  <link rel="icon" href="images/logo.png" />
+  <style>
+    .pay-summary {
+      margin: 1rem 0;
+      padding: 1rem;
+      border-radius: .85rem;
+      background: var(--brand-green-soft);
+      border-right: 3px solid var(--brand-green);
+      line-height: 1.9;
+    }
+    .pay-summary div { display: flex; justify-content: space-between; gap: 1rem; margin: .25rem 0; }
+    .pay-summary .total { font-weight: 700; color: var(--brand-green-deep); margin-top: .5rem; padding-top: .5rem; border-top: 1px dashed rgba(0,0,0,.12); }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="site-header">
+      <a class="brand-lockup" href="index.html">
+        <img src="images/logo.png" alt="لوگو" />
+        <div class="titles">
+          <strong>صندوق قرض‌الحسنه امام رضا (ع)</strong>
+          <span>پرداخت قسط بدون ورود</span>
+        </div>
+      </a>
+    </div>
+
+    <div class="card">
+      <h2><i class="fas fa-credit-card icon-green"></i>پرداخت قسط</h2>
+      <p class="muted-text" style="margin-top:0">این لینک از پیام بله آمده است و برای پرداخت همین قسط نیازی به ورود جداگانه نیست.</p>
+      <div id="msg" class="msg"></div>
+      <div id="content" style="display:none">
+        <div class="pay-summary" id="summary"></div>
+        <button type="button" class="btn primary block" id="btnPay"><i class="fas fa-university"></i>پرداخت آنلاین</button>
+      </div>
+      <p style="margin-top:1rem"><a href="login.html"><i class="fas fa-sign-in-alt"></i>ورود به پنل</a></p>
+    </div>
+  </div>
+  <script src="js/app.js"></script>
+  <script>
+    GoodLoan.ready(async function () {
+      const G = GoodLoan;
+      const token = new URLSearchParams(location.search).get('token');
+      if (!token) {
+        G.showMsg(G.$('msg'), 'لینک پرداخت نامعتبر است', false);
+        return;
+      }
+
+      const result = await G.get('/api/payment/installment-link?token=' + encodeURIComponent(token));
+      if (!result.res.ok || !result.data.success) {
+        G.showMsg(G.$('msg'), (result.data && result.data.message) || 'لینک پرداخت معتبر نیست', false);
+        return;
+      }
+
+      const info = G.payload(result);
+      G.$('content').style.display = 'block';
+      G.$('summary').innerHTML =
+        '<div><span>عضو</span><b>' + (G.pick(info, 'memberName') || '') + '</b></div>' +
+        '<div><span>شناسه قسط</span><b>' + G.pick(info, 'installmentId') + '</b></div>' +
+        '<div><span>سررسید</span><b>' + (G.pick(info, 'dueDate_Shamsi') || '-') + '</b></div>' +
+        '<div><span>مبلغ قسط</span><b>' + G.money(G.pick(info, 'installmentAmount')) + '</b></div>' +
+        '<div><span>کارمزد درگاه</span><b>' + G.money(G.pick(info, 'gatewayFeeAmount')) + '</b></div>' +
+        '<div class="total"><span>مبلغ قابل پرداخت</span><b>' + G.money(G.pick(info, 'payableAmount')) + '</b></div>';
+
+      G.bindClick('btnPay', async function () {
+        const btn = G.$('btnPay');
+        btn.disabled = true;
+        const { data } = await G.post('/api/payment/zarinpal/request', {
+          payToken: token,
+          paymentType: 1,
+          description: 'پرداخت قسط از لینک بله'
+        });
+        btn.disabled = false;
+        if (!data.success) {
+          G.showMsg(G.$('msg'), data.message || 'خطا در اتصال به درگاه', false);
+          return;
+        }
+        const gatewayUrl = G.pick(data.data, 'gatewayUrl');
+        if (gatewayUrl) location.href = gatewayUrl;
+      });
+    });
+  </script>
+</body>
+</html>

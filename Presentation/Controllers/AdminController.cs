@@ -104,5 +104,21 @@ namespace Presentation.Controllers
             await _serviceManager.NotificationSchedulerService.ProcessLoanQueueAsync(cancellationToken);
             return Ok(ApiResultDto.Ok("صف وام پردازش شد"));
         }
+
+        [HttpGet("members")]
+        public async Task<IActionResult> Members([FromQuery] int managerUserId, CancellationToken cancellationToken)
+        {
+            if (!await _serviceManager.AdminService.IsManagerAsync(managerUserId, cancellationToken))
+                return Unauthorized(ApiResultDto.Fail("فقط مدیر صندوق مجاز است"));
+
+            return Ok(await _serviceManager.AdminService.GetMembersAsync(cancellationToken));
+        }
+
+        [HttpPut("members")]
+        public async Task<IActionResult> UpdateMember([FromBody] AdminUpdateMemberDto dto, CancellationToken cancellationToken)
+        {
+            var result = await _serviceManager.AdminService.UpdateMemberAsync(dto, cancellationToken);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
     }
 }

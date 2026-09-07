@@ -5,6 +5,7 @@ using Domain.Entities;
 using Domain.Repositories;
 using Services.Abstractions;
 using Services.Helpers;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -140,7 +141,13 @@ namespace Services
 
                 userNames[user.UserId] = user.FullName;
                 var isOverdue = installment.InstallmentDate.Date < today;
-                var link = $"{baseUrl}/panel.html?installmentId={installment.InstallmentId}&payInstallment=1";
+                var signingKey = _configuration["App:LinkSigningKey"] ?? _configuration["ZarinPal:MerchantId"];
+                var payToken = SecureLinkHelper.CreateInstallmentPayToken(
+                    installment.InstallmentId,
+                    user.UserId,
+                    TimeSpan.FromDays(14),
+                    signingKey);
+                var link = $"{baseUrl}/pay-installment.html?token={Uri.EscapeDataString(payToken)}";
                 var log = await _baleService.NotifyInstallmentReminderAsync(user, installment, link, isOverdue, cancellationToken);
                 logs.Add(log);
             }

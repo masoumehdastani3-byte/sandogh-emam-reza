@@ -32,6 +32,47 @@
 
     .last-send-box h3 { margin: 0 0 .65rem; font-size: .95rem; }
 
+    .loan-filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .5rem;
+      margin: 0 0 1rem;
+    }
+
+    .loan-filter-btn {
+      border: 1px solid rgba(125, 185, 0, 0.35);
+      background: #fff;
+      color: var(--brand-charcoal);
+      border-radius: .65rem;
+      padding: .45rem .8rem;
+      font-size: .85rem;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .loan-filter-btn:hover { border-color: var(--brand-green); }
+
+    .loan-filter-btn.active {
+      background: var(--brand-green-soft);
+      border-color: var(--brand-green);
+      color: var(--brand-green-deep);
+      font-weight: 700;
+    }
+
+    .loan-filter-count {
+      display: inline-block;
+      min-width: 1.4rem;
+      margin-right: .25rem;
+      padding: 0 .35rem;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.06);
+      font-size: .75rem;
+    }
+
+    .loan-filter-btn.active .loan-filter-count {
+      background: rgba(125, 185, 0, 0.25);
+    }
+
   </style>
 
 </head>
@@ -88,7 +129,13 @@
 
       <div class="card">
 
-        <div class="stats" id="adminStats"></div>
+        <details class="stats-collapse" id="adminStatsCollapse">
+          <summary>
+            <span><i class="fas fa-chart-bar icon-green"></i> خلاصه وضعیت صندوق</span>
+            <span class="stats-collapse-hint">برای مشاهده آمار بزنید <i class="fas fa-chevron-down stats-collapse-chevron"></i></span>
+          </summary>
+          <div class="stats" id="adminStats"></div>
+        </details>
 
       </div>
 
@@ -98,15 +145,27 @@
 
         <h2><i class="fas fa-cogs icon-green"></i>مدیریت صندوق</h2>
 
-        <p class="muted-text" style="margin-top:0">عملیات خودکار صف وام و ارسال یادآور از بخش‌های مربوط در منو انجام می‌شود.</p>
+        <p class="muted-text" style="margin-top:0">از اینجا می‌توانید یادآوری روزانه اقساط را برای اعضا بفرستید یا صف وام را پردازش کنید.</p>
 
         <div class="actions" style="margin-top:1rem">
+
+          <button type="button" class="btn dark" id="btnRemind"><i class="fas fa-paper-plane"></i>ارسال یادآور روزانه <span class="bale-inline"><img src="images/bale-logo.svg" alt="" class="bale-logo" />بله</span></button>
 
           <button type="button" class="btn primary" id="btnProcess"><i class="fas fa-play"></i>پرداخت خودکار صف</button>
 
         </div>
 
         <div id="manageMsg" class="msg"></div>
+
+        <div id="lastSendBox" class="last-send-box" style="display:none;margin-top:1rem">
+
+          <h3><i class="fas fa-check-circle icon-green"></i> نتیجه آخرین ارسال یادآور</h3>
+
+          <p id="lastSendSummary" class="muted-text" style="margin-top:0"></p>
+
+          <div style="overflow:auto"><table><thead><tr><th>عضو</th><th>نوع</th><th>وضعیت</th><th>پیام</th><th>توضیح</th></tr></thead><tbody id="lastSendBody"></tbody></table></div>
+
+        </div>
 
       </div>
 
@@ -138,23 +197,7 @@
 
         <h2><i class="fas fa-bell icon-green"></i>یادآوری‌های ارسالی</h2>
 
-        <p class="muted-text" style="margin-top:0">با زدن دکمه زیر، برای <strong>اقساط عقب‌افتاده</strong> و <strong>سررسید ۳ روز دیگر</strong> (و خیرین) یادآور بله ارسال می‌شود.</p>
-
-        <div class="actions" style="margin-bottom:1rem">
-
-          <button type="button" class="btn dark" id="btnRemind"><i class="fas fa-paper-plane"></i>ارسال یادآور امروز <span class="bale-inline"><img src="images/bale-logo.svg" alt="" class="bale-logo" />بله</span></button>
-
-        </div>
-
-        <div id="lastSendBox" class="last-send-box" style="display:none">
-
-          <h3><i class="fas fa-check-circle icon-green"></i> نتیجه آخرین ارسال</h3>
-
-          <p id="lastSendSummary" class="muted-text" style="margin-top:0"></p>
-
-          <div style="overflow:auto"><table><thead><tr><th>عضو</th><th>نوع</th><th>وضعیت</th><th>پیام</th><th>توضیح</th></tr></thead><tbody id="lastSendBody"></tbody></table></div>
-
-        </div>
+        <p class="muted-text" style="margin-top:0">تاریخچه یادآورهای ارسال‌شده. برای ارسال یادآور روزانه به صفحه <strong>مدیریت صندوق</strong> بروید.</p>
 
         <h3 style="font-size:1rem;margin:1rem 0 .65rem">تاریخچه همه یادآوری‌ها</h3>
 
@@ -210,9 +253,16 @@
 
         <h2><i class="fas fa-file-invoice icon-green"></i>همه وام‌ها</h2>
 
-        <p>لیست کامل درخواست‌ها و وام‌های پرداخت‌شده با تاریخ درخواست و تاریخ پرداخت.</p>
+        <p>درخواست‌های در انتظار تایید را از وام‌های تایید و پرداخت‌شده جدا ببینید.</p>
 
-        <div style="overflow:auto"><table><thead><tr><th>شناسه</th><th>عضو</th><th>مبلغ</th><th>تاریخ درخواست</th><th>تاریخ پرداخت</th><th>وضعیت</th><th>نوبت</th></tr></thead><tbody id="allLoansBody"></tbody></table></div>
+        <div class="loan-filter-bar" id="loanFilterBar" role="group" aria-label="فیلتر وضعیت درخواست">
+          <button type="button" class="loan-filter-btn active" data-filter="pending">در انتظار تایید <span class="loan-filter-count" id="loanCountPending">0</span></button>
+          <button type="button" class="loan-filter-btn" data-filter="approved">تایید و پرداخت‌شده <span class="loan-filter-count" id="loanCountApproved">0</span></button>
+          <button type="button" class="loan-filter-btn" data-filter="rejected">رد / لغو شده <span class="loan-filter-count" id="loanCountRejected">0</span></button>
+          <button type="button" class="loan-filter-btn" data-filter="all">همه <span class="loan-filter-count" id="loanCountAll">0</span></button>
+        </div>
+
+        <div style="overflow:auto"><table><thead><tr><th>شناسه</th><th>عضو</th><th>مبلغ</th><th>تاریخ درخواست</th><th>تاریخ پرداخت</th><th>وضعیت درخواست</th><th>نوبت</th><th>عملیات</th></tr></thead><tbody id="allLoansBody"></tbody></table></div>
 
       </div>
 
@@ -223,6 +273,35 @@
         <h2><i class="fas fa-money-check-alt icon-green"></i>واریزی‌های اعضا</h2>
 
         <div style="overflow:auto"><table><thead><tr><th>شناسه</th><th>کاربر</th><th>مبلغ</th><th>نوع</th><th>پیگیری</th><th>تاریخ</th></tr></thead><tbody id="payBody"></tbody></table></div>
+
+      </div>
+
+
+
+      <div class="card tab-panel" id="tab-members">
+
+        <h2><i class="fas fa-users icon-green"></i>اعضای سایت</h2>
+
+        <p class="muted-text" style="margin-top:0">لیست همه اعضا؛ می‌توانید عضو را فعال/غیرفعال کنید یا توضیح مدیریتی برای او بنویسید.</p>
+
+        <div class="row" style="margin-bottom:.85rem;align-items:flex-end">
+          <div style="flex:1">
+            <label>جستجو (نام، موبایل، کد ملی، نقش)</label>
+            <input id="memberSearch" type="search" placeholder="مثال: داستانی یا ۰۹۱..." />
+          </div>
+          <div>
+            <label>وضعیت</label>
+            <select id="memberStatusFilter">
+              <option value="all">همه</option>
+              <option value="active">فعال</option>
+              <option value="inactive">غیرفعال</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="membersMsg" class="msg"></div>
+
+        <div style="overflow:auto"><table><thead><tr><th>شناسه</th><th>نام</th><th>کد ملی</th><th>موبایل</th><th>نقش</th><th>وضعیت</th><th>توضیحات مدیر</th><th>عملیات</th></tr></thead><tbody id="membersBody"></tbody></table></div>
 
       </div>
 
@@ -288,6 +367,8 @@
 
       G.initTabs('tab-manage');
 
+      G.initStatsCollapse('#adminStatsCollapse');
+
       G.bindAmountInputs('.amount-input');
 
       G.initPageTables('#adminContent');
@@ -325,7 +406,7 @@
       function updateSampleLink(baseUrl) {
         var url = (baseUrl || '').replace(/\/+$/, '');
         G.$('sampleInstallmentLink').textContent = url
-          ? url + '/panel.html?installmentId=123&payInstallment=1'
+          ? url + '/pay-installment.html?token=TOKEN'
           : '—';
       }
 
@@ -439,6 +520,118 @@
 
 
 
+      let allLoansCache = [];
+      let loanListFilter = 'pending';
+      let membersCache = [];
+
+      function escapeHtml(text) {
+        return String(text == null ? '' : text)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      function isMemberActive(user) {
+        return G.pick(user, 'active') !== false && G.pick(user, 'active') !== 'false';
+      }
+
+      function renderMembers() {
+        const q = (G.$('memberSearch').value || '').trim().toLowerCase();
+        const statusFilter = G.$('memberStatusFilter').value || 'all';
+        const filtered = membersCache.filter(function (u) {
+          const active = isMemberActive(u);
+          if (statusFilter === 'active' && !active) return false;
+          if (statusFilter === 'inactive' && active) return false;
+          if (!q) return true;
+          const hay = [
+            G.pick(u, 'userId'),
+            G.pick(u, 'fullName'),
+            G.pick(u, 'firstName'),
+            G.pick(u, 'lastName'),
+            G.pick(u, 'mobile'),
+            G.pick(u, 'nationalCode'),
+            G.pick(u, 'roleName'),
+            G.pick(u, 'description')
+          ].join(' ').toLowerCase();
+          return hay.indexOf(q) >= 0;
+        });
+
+        G.$('membersBody').innerHTML = filtered.length ? filtered.map(function (u) {
+          const id = G.pick(u, 'userId');
+          const active = isMemberActive(u);
+          const statusBadge = active
+            ? '<span class="badge" style="background:#ecfdf3;color:#027a48">فعال</span>'
+            : '<span class="badge" style="background:#fde8e6;color:#9b1c1c">غیرفعال</span>';
+          const toggleLabel = active ? 'غیرفعال کردن' : 'فعال کردن';
+          const toggleClass = active ? 'btn dark btn-compact-table btn-member-toggle' : 'btn primary btn-compact-table btn-member-toggle';
+          const note = G.pick(u, 'description') || '—';
+          return '<tr' + (active ? '' : ' class="row-reminder-failed"') + '>' +
+            '<td>' + id + '</td>' +
+            '<td>' + escapeHtml(G.pick(u, 'fullName') || '') + '</td>' +
+            '<td dir="ltr">' + escapeHtml(G.pick(u, 'nationalCode') || '') + '</td>' +
+            '<td dir="ltr">' + escapeHtml(G.pick(u, 'mobile') || '') + '</td>' +
+            '<td>' + escapeHtml(G.pick(u, 'roleName') || G.pick(u, 'roleId') || '') + '</td>' +
+            '<td>' + statusBadge + '</td>' +
+            '<td style="max-width:220px;white-space:pre-wrap">' + escapeHtml(note) + '</td>' +
+            '<td class="table-actions">' +
+              '<button type="button" class="' + toggleClass + '" data-id="' + id + '" data-active="' + (active ? '1' : '0') + '">' + toggleLabel + '</button> ' +
+              '<button type="button" class="btn primary btn-compact-table btn-member-note" data-id="' + id + '">توضیح</button>' +
+            '</td></tr>';
+        }).join('') : '<tr><td colspan="8">عضوی یافت نشد</td></tr>';
+        G.refreshDataTable('membersBody');
+      }
+
+      async function loadMembers() {
+        const result = await G.get('/api/admin/members?managerUserId=' + managerId);
+        if (!result.res.ok) {
+          G.showMsg(G.$('membersMsg'), (result.data && result.data.message) || 'خطا در بارگذاری اعضا', false);
+          return;
+        }
+        membersCache = G.payload(result) || [];
+        renderMembers();
+      }
+
+      function loanRequestStatus(loan) {
+        return Number(G.pick(loan, 'loanRequestStatus')) || 0;
+      }
+
+      function matchesLoanFilter(loan, filter) {
+        const status = loanRequestStatus(loan);
+        if (filter === 'pending') return status === 1;
+        if (filter === 'approved') return status === 2;
+        if (filter === 'rejected') return status === 3 || status === 4;
+        return true;
+      }
+
+      function updateLoanFilterCounts(loans) {
+        const pending = loans.filter(function (l) { return matchesLoanFilter(l, 'pending'); }).length;
+        const approved = loans.filter(function (l) { return matchesLoanFilter(l, 'approved'); }).length;
+        const rejected = loans.filter(function (l) { return matchesLoanFilter(l, 'rejected'); }).length;
+        G.$('loanCountPending').textContent = pending;
+        G.$('loanCountApproved').textContent = approved;
+        G.$('loanCountRejected').textContent = rejected;
+        G.$('loanCountAll').textContent = loans.length;
+      }
+
+      function renderAllLoans() {
+        const filtered = allLoansCache.filter(function (l) { return matchesLoanFilter(l, loanListFilter); });
+        G.$('allLoansBody').innerHTML = filtered.length ? filtered.map(function (l) {
+          const u = G.pick(l, 'user');
+          const status = loanRequestStatus(l);
+          const isPending = status === 1;
+          const actions = isPending
+            ? '<button type="button" class="btn primary btn-disburse btn-compact-table" data-id="' + G.pick(l, 'loanId') + '">تایید و پرداخت</button> ' +
+              '<button type="button" class="btn dark btn-reject btn-compact-table" data-id="' + G.pick(l, 'loanId') + '">رد</button>'
+            : '<span class="muted-text">—</span>';
+          return '<tr><td>' + G.pick(l, 'loanId') + '</td><td>' + (G.pick(u, 'fullName') || G.pick(l, 'userId') || '') + '</td><td class="amount">' +
+            G.money(G.pick(l, 'loanAmount')) + '</td><td>' + G.shamsiDate(l, 'requestDate_Shamsi', 'requestDate') + '</td><td>' +
+            G.shamsiDate(l, 'paymentDate_Shamsi', 'paymentDate') + '</td><td>' + G.loanStatusText(l) + '</td><td>' +
+            (G.pick(l, 'queuePosition') || '-') + '</td><td class="table-actions">' + actions + '</td></tr>';
+        }).join('') : '<tr><td colspan="8">موردی در این بخش نیست</td></tr>';
+        G.refreshDataTable('allLoansBody');
+      }
+
       async function load() {
 
         const q = await G.get('/api/loan/queue?managerUserId=' + managerId);
@@ -455,21 +648,9 @@
 
         const allLoans = await G.get('/api/loan/all?managerUserId=' + managerId);
 
-        const loans = G.payload(allLoans) || [];
-
-        G.$('allLoansBody').innerHTML = loans.length ? loans.map(function (l) {
-
-          const u = G.pick(l, 'user');
-
-          return '<tr><td>' + G.pick(l, 'loanId') + '</td><td>' + (G.pick(u, 'fullName') || G.pick(l, 'userId') || '') + '</td><td class="amount">' +
-
-            G.money(G.pick(l, 'loanAmount')) + '</td><td>' + G.shamsiDate(l, 'requestDate_Shamsi', 'requestDate') + '</td><td>' +
-
-            G.shamsiDate(l, 'paymentDate_Shamsi', 'paymentDate') + '</td><td>' + G.loanStatusText(l) + '</td><td>' +
-
-            (G.pick(l, 'queuePosition') || '-') + '</td></tr>';
-
-        }).join('') : '<tr><td colspan="7">وامی ثبت نشده</td></tr>';
+        allLoansCache = G.payload(allLoans) || [];
+        updateLoanFilterCounts(allLoansCache);
+        renderAllLoans();
 
 
 
@@ -509,17 +690,34 @@
 
         await loadSettings();
 
+        await loadMembers();
+
 
 
         G.refreshDataTable('queueBody');
-
-        G.refreshDataTable('allLoansBody');
 
         G.refreshDataTable('payBody');
 
         G.refreshDataTable('ledgerBody');
 
       }
+
+
+
+      G.$('memberSearch').addEventListener('input', renderMembers);
+      G.$('memberStatusFilter').addEventListener('change', renderMembers);
+
+
+
+      document.getElementById('loanFilterBar').addEventListener('click', function (e) {
+        const btn = e.target.closest('.loan-filter-btn');
+        if (!btn) return;
+        loanListFilter = btn.getAttribute('data-filter') || 'all';
+        document.querySelectorAll('#loanFilterBar .loan-filter-btn').forEach(function (b) {
+          b.classList.toggle('active', b === btn);
+        });
+        renderAllLoans();
+      });
 
 
 
@@ -575,6 +773,51 @@
 
           load();
 
+          return;
+
+        }
+
+        const toggleBtn = e.target.closest('.btn-member-toggle');
+        if (toggleBtn && G.$('membersBody').contains(toggleBtn)) {
+          const userId = Number(toggleBtn.getAttribute('data-id'));
+          const currentlyActive = toggleBtn.getAttribute('data-active') === '1';
+          const nextActive = !currentlyActive;
+          const confirmText = nextActive
+            ? 'این عضو فعال شود؟'
+            : 'این عضو غیرفعال شود؟ (دیگر نمی‌تواند وارد سایت شود)';
+          if (!window.confirm(confirmText)) return;
+
+          toggleBtn.disabled = true;
+          const { data } = await G.put('/api/admin/members', {
+            managerUserId: managerId,
+            userId: userId,
+            active: nextActive,
+            updateDescription: false
+          });
+          toggleBtn.disabled = false;
+          G.showMsg(G.$('membersMsg'), data.message || 'خطا', data.success);
+          if (data.success) await loadMembers();
+          return;
+        }
+
+        const noteBtn = e.target.closest('.btn-member-note');
+        if (noteBtn && G.$('membersBody').contains(noteBtn)) {
+          const userId = Number(noteBtn.getAttribute('data-id'));
+          const member = membersCache.find(function (u) { return Number(G.pick(u, 'userId')) === userId; });
+          const current = member ? (G.pick(member, 'description') || '') : '';
+          const note = prompt('توضیحات مدیریتی برای این عضو:', current);
+          if (note === null) return;
+
+          noteBtn.disabled = true;
+          const { data } = await G.put('/api/admin/members', {
+            managerUserId: managerId,
+            userId: userId,
+            updateDescription: true,
+            description: note
+          });
+          noteBtn.disabled = false;
+          G.showMsg(G.$('membersMsg'), data.message || 'خطا', data.success);
+          if (data.success) await loadMembers();
         }
 
       });
@@ -598,7 +841,7 @@
         if (btn) btn.disabled = true;
         const { data } = await G.post('/api/admin/send-monthly-reminders', { managerUserId: managerId });
         if (btn) btn.disabled = false;
-        G.showMsg(G.$('reminderMsg'), data.message || 'انجام شد', data.success);
+        G.showMsg(G.$('manageMsg'), data.message || 'انجام شد', data.success);
         if (data.success) {
           showLastSendResult(data.data || {});
           await loadReminders();

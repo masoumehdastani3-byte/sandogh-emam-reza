@@ -3,6 +3,7 @@ using Contracts.Enums;
 using Contracts.Models;
 using Domain.Entities;
 using Domain.Repositories;
+using Microsoft.Extensions.Configuration;
 using Services.Abstractions;
 using Services.Helpers;
 using System;
@@ -26,17 +27,20 @@ namespace Services
         private readonly IMapper _mapper;
         private readonly IBaleService _baleService;
         private readonly INationalIdVerifyService _nationalIdVerifyService;
+        private readonly IConfiguration _configuration;
 
         public UserService(
             IRepositoryManager repositoryManager,
             IMapper mapper,
             IBaleService baleService,
-            INationalIdVerifyService nationalIdVerifyService)
+            INationalIdVerifyService nationalIdVerifyService,
+            IConfiguration configuration)
         {
             _repositoryManager = repositoryManager;
             _mapper = mapper;
             _baleService = baleService;
             _nationalIdVerifyService = nationalIdVerifyService;
+            _configuration = configuration;
         }
 
         public async Task<string> Delete(int userId, CancellationToken cancellationToken = default)
@@ -205,11 +209,13 @@ namespace Services
             await _repositoryManager.LoginOtpRepository.InvalidateActiveForUserAsync(user.UserId, cancellationToken);
 
             var otpCode = PersianDateHelper.GenerateOtpCode();
+            var loginToken = SecureLinkHelper.CreateOpaqueToken();
             var otp = new LoginOtp
             {
                 UserId = user.UserId,
                 NationalCode = nationalCode,
                 OtpHash = HashOtp(nationalCode, otpCode),
+                LoginTokenHash = SecureLinkHelper.HashToken(loginToken),
                 ExpiresAt = DateTime.Now.AddMinutes(OtpExpiryMinutes),
                 AttemptCount = 0,
                 IsUsed = false,
@@ -219,11 +225,14 @@ namespace Services
             _repositoryManager.LoginOtpRepository.Insert(otp);
             await _repositoryManager.UnitOfWork.SaveChangesAsync(cancellationToken);
 
-            var sent = await _baleService.NotifyLoginOtpAsync(user, otpCode, cancellationToken);
+            var baseUrl = await AppUrlHelper.GetBaseUrlAsync(_repositoryManager, _configuration, cancellationToken);
+            var oneClickLink = $"{baseUrl}/login.html?loginToken={Uri.EscapeDataString(loginToken)}";
+
+            var sent = await _baleService.NotifyLoginOtpAsync(user, otpCode, oneClickLink, cancellationToken);
             if (!sent)
                 return ApiResultDto.Fail("ارسال کد از طریق بله ناموفق بود. بعداً دوباره تلاش کنید.");
 
-            return ApiResultDto.Ok("کد ورود به بله شما ارسال شد.", new
+            return ApiResultDto.Ok("کد ورود به بله شما ارسال شد. می‌توانید روی لینک یک‌کلیکی در پیام بله بزنید.", new
             {
                 expiresInSeconds = OtpExpiryMinutes * 60,
                 maskedNationalCode = MaskNationalCode(nationalCode)
@@ -274,6 +283,29 @@ namespace Services
             var user = await _repositoryManager.UserRepository.GetByUserIdAsync(record.UserId, cancellationToken);
             if (user == null || user.Active != true)
                 return ApiResultDto.Fail("کاربر یافت نشد");
+
+            var userDto = _mapper.Map<UserDto>(user);
+            userDto.Password = null;
+            return ApiResultDto.Ok("ورود موفق", userDto);
+        }
+
+        public async Task<ApiResultDto> VerifyLoginTokenAsync(VerifyLoginTokenDto dto, CancellationToken cancellationToken = default)
+        {
+            if (dto == null || string.IsNullOrWhiteSpace(dto.LoginToken))
+                return ApiResultDto.Fail("لینک ورود نامعتبر است");
+
+            var tokenHash = SecureLinkHelper.HashToken(dto.LoginToken.Trim());
+            var record = await _repositoryManager.LoginOtpRepository.GetActiveByLoginTokenHashAsync(tokenHash, cancellationToken);
+            if (record == null)
+                return ApiResultDto.Fail("لینک ورود منقضی شده یا قبلاً استفاده شده است. دوباره کد ورود درخواست دهید.");
+
+            record.IsUsed = true;
+            _repositoryManager.LoginOtpRepository.Update(record);
+            await _repositoryManager.UnitOfWork.SaveChangesAsync(cancellationToken);
+
+            var user = await _repositoryManager.UserRepository.GetByUserIdAsync(record.UserId, cancellationToken);
+            if (user == null || user.Active != true)
+                return ApiResultDto.Fail("کاربر یافت نشد یا غیرفعال است");
 
             var userDto = _mapper.Map<UserDto>(user);
             userDto.Password = null;

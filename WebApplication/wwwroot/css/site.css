@@ -345,6 +345,55 @@ input:focus, select:focus, textarea:focus {
   gap: .75rem;
 }
 
+.stats-collapse {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.stats-collapse > summary {
+  list-style: none;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  padding: .7rem .85rem;
+  margin: 0 0 .75rem;
+  border-radius: .75rem;
+  background: linear-gradient(180deg, #fff, var(--brand-green-soft));
+  border: 1px solid rgba(125, 185, 0, 0.22);
+  color: var(--brand-charcoal);
+  font-weight: 700;
+  font-size: .9rem;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.stats-collapse > summary::-webkit-details-marker {
+  display: none;
+}
+
+.stats-collapse > summary .stats-collapse-hint {
+  font-size: .75rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.stats-collapse > summary .stats-collapse-chevron {
+  color: var(--brand-green-deep);
+  transition: transform .2s ease;
+}
+
+.stats-collapse[open] > summary .stats-collapse-chevron {
+  transform: rotate(180deg);
+}
+
+.stats-collapse > summary:focus-visible {
+  outline: 2px solid var(--brand-green);
+  outline-offset: 2px;
+}
+
 .stat {
   padding: 1rem;
   border-radius: .85rem;
@@ -1963,6 +2012,18 @@ body.has-mobile-nav {
   .stats {
     grid-template-columns: repeat(2, 1fr);
     gap: .5rem;
+  }
+
+  .stats-collapse > summary {
+    display: flex;
+  }
+
+  .stats-collapse:not([open]) .stats {
+    display: none;
+  }
+
+  .stats-collapse[open] > summary {
+    margin-bottom: .65rem;
   }
 
   .stat {

@@ -22,19 +22,22 @@ namespace Services
         private readonly IZarinPalService _zarinPalService;
         private readonly IBaleService _baleService;
         private readonly IConfiguration _configuration;
+        private readonly NikooPaymentHubClient _nikooPaymentHub;
 
         public PaymentService(
             IRepositoryManager repositoryManager,
             IMapper mapper,
             IZarinPalService zarinPalService,
             IBaleService baleService,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            NikooPaymentHubClient nikooPaymentHub)
         {
             _repositoryManager = repositoryManager;
             _mapper = mapper;
             _zarinPalService = zarinPalService;
             _baleService = baleService;
             _configuration = configuration;
+            _nikooPaymentHub = nikooPaymentHub;
         }
 
         public async Task<ApiResultDto> StartZarinPalPaymentAsync(ZarinPalRequestDto dto, CancellationToken cancellationToken = default)
@@ -99,9 +102,6 @@ namespace Services
             }
 
             var baseUrl = await AppUrlHelper.GetBaseUrlAsync(_repositoryManager, _configuration, cancellationToken);
-            var callback = string.IsNullOrWhiteSpace(dto.CallbackUrl)
-                ? (_configuration["ZarinPal:CallbackUrl"] ?? $"{baseUrl}/api/payment/zarinpal/callback")
-                : dto.CallbackUrl;
 
             var now = DateTime.Now;
             var payment = new Payment
@@ -125,9 +125,66 @@ namespace Services
             _repositoryManager.PaymentRepository.Insert(payment);
             await _repositoryManager.UnitOfWork.SaveChangesAsync(cancellationToken);
 
+            // پرداخت از طریق دامنه نیکو سیستم آفرین (صفحه Start + Callback زرین‌پال آنجا انجام می‌شود)
+            if (_nikooPaymentHub.IsEnabled)
+            {
+                var amountToman = gatewayAmount / 10;
+                if (gatewayAmount % 10 != 0)
+                    amountToman = (gatewayAmount + 9) / 10;
+
+                if (amountToman < 1000)
+                {
+                    payment.GatewayStatus = (byte)GatewayStatus.Failed;
+                    payment.Description = "مبلغ کمتر از حداقل درگاه است";
+                    _repositoryManager.PaymentRepository.Update(payment);
+                    await _repositoryManager.UnitOfWork.SaveChangesAsync(cancellationToken);
+                    return ApiResultDto.Fail("مبلغ پرداخت کمتر از حداقل مجاز درگاه است");
+                }
+
+                var returnUrl = $"{baseUrl.TrimEnd('/')}/api/payment/nikoo/return";
+                var notifyUrl = $"{baseUrl.TrimEnd('/')}/api/payment/nikoo/notify";
+                var hub = await _nikooPaymentHub.CreatePaymentAsync(
+                    amountToman,
+                    returnUrl,
+                    description ?? $"پرداخت لبخند فردا - کاربر {user.UserId}",
+                    payment.PaymentId.ToString(),
+                    notifyUrl,
+                    user.FullName,
+                    user.Mobile,
+                    cancellationToken);
+
+                if (!hub.Success)
+                {
+                    payment.GatewayStatus = (byte)GatewayStatus.Failed;
+                    payment.Description = hub.Message;
+                    _repositoryManager.PaymentRepository.Update(payment);
+                    await _repositoryManager.UnitOfWork.SaveChangesAsync(cancellationToken);
+                    return ApiResultDto.Fail(hub.Message);
+                }
+
+                payment.ZarinPalAuthority = hub.Token;
+                _repositoryManager.PaymentRepository.Update(payment);
+                await _repositoryManager.UnitOfWork.SaveChangesAsync(cancellationToken);
+
+                return ApiResultDto.Ok("هدایت به درگاه", new
+                {
+                    payment.PaymentId,
+                    Authority = hub.Token,
+                    GatewayUrl = hub.PaymentUrl,
+                    Amount = gatewayAmount,
+                    GatewayFeeAmount = gatewayFee,
+                    BaseAmount = dto.Amount,
+                    Via = "nikoo"
+                });
+            }
+
+            var callback = string.IsNullOrWhiteSpace(dto.CallbackUrl)
+                ? (_configuration["ZarinPal:CallbackUrl"] ?? $"{baseUrl}/api/payment/zarinpal/callback")
+                : dto.CallbackUrl;
+
             var request = await _zarinPalService.RequestPaymentAsync(
                 gatewayAmount,
-                description ?? $"پرداخت صندوق قرض‌الحسنه - کاربر {user.UserId}",
+                description ?? $"پرداخت لبخند فردا - کاربر {user.UserId}",
                 callback,
                 user.Mobile,
                 cancellationToken);
@@ -152,7 +209,8 @@ namespace Services
                 GatewayUrl = request.GatewayUrl,
                 Amount = gatewayAmount,
                 GatewayFeeAmount = gatewayFee,
-                BaseAmount = dto.Amount
+                BaseAmount = dto.Amount,
+                Via = "direct"
             });
         }
 
@@ -234,6 +292,61 @@ namespace Services
             payment.Confirm = true;
             payment.ZarinPalRefId = verify.RefId;
             payment.RefrenceNumber = verify.RefId;
+            payment.UpdateDate = DateTime.Now;
+            _repositoryManager.PaymentRepository.Update(payment);
+
+            await ApplySuccessfulPaymentAsync(payment, cancellationToken);
+            await _repositoryManager.UnitOfWork.SaveChangesAsync(cancellationToken);
+
+            var payer = payment.UserId.HasValue
+                ? await _repositoryManager.UserRepository.GetByUserIdAsync(payment.UserId.Value, cancellationToken)
+                : null;
+            await _baleService.NotifyManagersPaymentAsync(payment, payer, cancellationToken);
+
+            return ApiResultDto.Ok("پرداخت با موفقیت تایید شد", _mapper.Map<PaymentDto>(payment));
+        }
+
+        public async Task<ApiResultDto> CompleteNikooPaymentAsync(
+            string token,
+            string status,
+            string amount,
+            string externalRef,
+            string refId,
+            string timestamp,
+            string signature,
+            CancellationToken cancellationToken = default)
+        {
+            if (!_nikooPaymentHub.VerifyCallback(token, status, amount, externalRef, refId, timestamp, signature))
+                return ApiResultDto.Fail("امضای بازگشت از درگاه نامعتبر است");
+
+            Payment payment = null;
+            if (!string.IsNullOrWhiteSpace(token))
+                payment = await _repositoryManager.PaymentRepository.GetByAuthorityAsync(token, cancellationToken);
+
+            if (payment == null && int.TryParse(externalRef, out var paymentId))
+                payment = await _repositoryManager.PaymentRepository.GetByPaymentIdAsync(paymentId, cancellationToken);
+
+            if (payment == null)
+                return ApiResultDto.Fail("تراکنش یافت نشد");
+
+            if (payment.GatewayStatus == (byte)GatewayStatus.Success)
+                return ApiResultDto.Ok("این تراکنش قبلاً تایید شده است", _mapper.Map<PaymentDto>(payment));
+
+            if (!string.Equals(status, "paid", StringComparison.OrdinalIgnoreCase))
+            {
+                payment.GatewayStatus = (byte)GatewayStatus.Failed;
+                payment.Description = (payment.Description ?? "") + " | وضعیت نیکو: " + (status ?? "failed");
+                payment.UpdateDate = DateTime.Now;
+                _repositoryManager.PaymentRepository.Update(payment);
+                await _repositoryManager.UnitOfWork.SaveChangesAsync(cancellationToken);
+                return ApiResultDto.Fail("پرداخت ناموفق بود یا توسط کاربر لغو شد");
+            }
+
+            payment.GatewayStatus = (byte)GatewayStatus.Success;
+            payment.Confirm = true;
+            payment.ZarinPalAuthority = token ?? payment.ZarinPalAuthority;
+            payment.ZarinPalRefId = refId;
+            payment.RefrenceNumber = refId;
             payment.UpdateDate = DateTime.Now;
             _repositoryManager.PaymentRepository.Update(payment);
 

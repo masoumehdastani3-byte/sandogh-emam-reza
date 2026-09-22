@@ -35,7 +35,13 @@ namespace Services
             _lazy_EnumsService = new Lazy<I_EnumsService>(() => new _EnumsService(repositoryManager));
             _lazyISettingService = new Lazy<ISettingService>(() => new SettingService(repositoryManager, mapper));
             _lazyLoanService = new Lazy<ILoanService>(() => new LoanService(repositoryManager, mapper, BaleService));
-            _lazyPaymentService = new Lazy<IPaymentService>(() => new PaymentService(repositoryManager, mapper, ZarinPalService, BaleService, configuration));
+            _lazyPaymentService = new Lazy<IPaymentService>(() => new PaymentService(
+                repositoryManager,
+                mapper,
+                ZarinPalService,
+                BaleService,
+                configuration,
+                new NikooPaymentHubClient(httpClientFactory, configuration)));
             _lazyMemberPanelService = new Lazy<IMemberPanelService>(() => new MemberPanelService(repositoryManager, mapper));
             _lazyNotificationSchedulerService = new Lazy<INotificationSchedulerService>(() =>
                 new NotificationSchedulerService(repositoryManager, BaleService, LoanService, mapper, configuration));

@@ -572,7 +572,10 @@ window.GoodLoan = (function () {
     if (window.matchMedia('(min-width: 769px)').matches) return;
 
     var page = (location.pathname.split('/').pop() || 'index.html').toLowerCase();
+    // صفحات تمام‌صفحه بدون منوی پایین (مخصوصاً WebView بله)
     if (page === 'admin.html' || page === 'reports.html' || page === 'roles.html') return;
+    if (page === 'login.html' || page === 'register.html') return;
+    if (page === 'pay-installment.html' || page === 'payment-result.html') return;
 
     document.body.classList.add('has-mobile-nav');
 

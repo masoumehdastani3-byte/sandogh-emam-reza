@@ -84,6 +84,19 @@ namespace Contracts.Models
         public string PayToken { get; set; }
     }
 
+    /// <summary>بدنه نوتیفیکیشن هاب پرداخت نیکو سیستم.</summary>
+    public class NikooNotifyDto
+    {
+        public string Token { get; set; }
+        public string Status { get; set; }
+        public object Amount { get; set; }
+        public string ExternalRef { get; set; }
+        public object RefId { get; set; }
+        public string Timestamp { get; set; }
+        public string Signature { get; set; }
+        public string Message { get; set; }
+    }
+
     public class MemberPanelDto
     {
         public UserDto User { get; set; }

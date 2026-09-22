@@ -36,7 +36,7 @@ namespace WebApplication
 
             services.AddSwaggerGen(c =>
             {
-                c.SwaggerDoc("v1", new OpenApiInfo { Title = "GoodLoan API", Version = "v1" });
+                c.SwaggerDoc("v1", new OpenApiInfo { Title = "لبخند فردا API", Version = "v1" });
             });
 
             services.AddAutoMapper(System.AppDomain.CurrentDomain.GetAssemblies());
@@ -68,7 +68,7 @@ namespace WebApplication
             app.UseCors();
             app.UseUserRequstMiddleware();
             app.UseSwagger();
-            app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "GoodLoan API v1"));
+            app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "لبخند فردا API v1"));
 
             var wwwroot = Path.Combine(env.ContentRootPath, "wwwroot");
             Directory.CreateDirectory(wwwroot);

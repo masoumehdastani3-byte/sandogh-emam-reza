@@ -41,6 +41,15 @@ namespace Services.Abstractions
         Task<ApiResultDto> StartZarinPalPaymentAsync(ZarinPalRequestDto dto, CancellationToken cancellationToken = default);
         Task<ApiResultDto> GetInstallmentPayLinkAsync(string payToken, CancellationToken cancellationToken = default);
         Task<ApiResultDto> VerifyZarinPalPaymentAsync(string authority, string status, CancellationToken cancellationToken = default);
+        Task<ApiResultDto> CompleteNikooPaymentAsync(
+            string token,
+            string status,
+            string amount,
+            string externalRef,
+            string refId,
+            string timestamp,
+            string signature,
+            CancellationToken cancellationToken = default);
         Task<ApiResultDto> SubmitManualPaymentAsync(ManualPaymentDto dto, CancellationToken cancellationToken = default);
         Task<List<PaymentDto>> GetByUserIdAsync(int userId, CancellationToken cancellationToken = default);
         Task<List<PaymentDto>> GetAllAsync(CancellationToken cancellationToken = default);

@@ -40,6 +40,30 @@ namespace Presentation.Controllers
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
+        [HttpPost("import-past")]
+        public async Task<IActionResult> ImportPast([FromBody] ImportPastLoanDto dto, CancellationToken cancellationToken)
+        {
+            if (dto == null)
+                return BadRequest(ApiResultDto.Fail("درخواست نامعتبر است"));
+            if (!await _serviceManager.AdminService.IsManagerAsync(dto.ManagerUserId, cancellationToken))
+                return Unauthorized(ApiResultDto.Fail("فقط مدیر صندوق مجاز است"));
+
+            var result = await _serviceManager.LoanService.ImportPastLoanAsync(dto, cancellationToken);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        [HttpPost("move")]
+        public async Task<IActionResult> Move([FromBody] MoveQueueDto dto, CancellationToken cancellationToken)
+        {
+            if (dto == null)
+                return BadRequest(ApiResultDto.Fail("درخواست نامعتبر است"));
+            if (!await _serviceManager.AdminService.IsManagerAsync(dto.ManagerUserId, cancellationToken))
+                return Unauthorized(ApiResultDto.Fail("فقط مدیر صندوق مجاز است"));
+
+            var result = await _serviceManager.LoanService.MoveInQueueAsync(dto.LoanId, dto.Direction, dto.ManagerUserId, cancellationToken);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
         [HttpGet("queue")]
         public async Task<IActionResult> Queue([FromQuery] int managerUserId, CancellationToken cancellationToken)
         {
@@ -59,8 +83,13 @@ namespace Presentation.Controllers
         }
 
         [HttpGet("waiting-count")]
-        public async Task<IActionResult> WaitingCount(CancellationToken cancellationToken) =>
-            Ok(new { count = await _serviceManager.LoanService.GetWaitingCountAsync(cancellationToken) });
+        public async Task<IActionResult> WaitingCount([FromQuery] int managerUserId, CancellationToken cancellationToken)
+        {
+            if (!await _serviceManager.AdminService.IsManagerAsync(managerUserId, cancellationToken))
+                return Unauthorized(ApiResultDto.Fail("فقط مدیر صندوق مجاز است"));
+
+            return Ok(new { count = await _serviceManager.LoanService.GetWaitingCountAsync(cancellationToken) });
+        }
 
         [HttpGet("disbursed-count")]
         public async Task<IActionResult> DisbursedCount(CancellationToken cancellationToken) =>

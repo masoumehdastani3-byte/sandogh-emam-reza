@@ -8,6 +8,7 @@ namespace Services.Abstractions
     public interface IBaleService
     {
         Task<bool> SendMessageAsync(string chatId, string message, CancellationToken cancellationToken = default);
+        Task<bool> SendWithKeyboardAsync(string chatId, string message, object replyMarkup, CancellationToken cancellationToken = default);
         Task NotifyPasswordAsync(User user, string password, CancellationToken cancellationToken = default);
         Task<bool> NotifyLoginOtpAsync(User user, string otpCode, string oneClickLoginLink = null, CancellationToken cancellationToken = default);
         Task<NotificationLog> NotifyInstallmentReminderAsync(User user, Installment installment, string paymentLink, bool isOverdue = false, CancellationToken cancellationToken = default);

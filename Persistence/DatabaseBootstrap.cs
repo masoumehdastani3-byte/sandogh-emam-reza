@@ -316,6 +316,7 @@ END
 
             await EnsureMenusAndAccessAsync(db);
             await EnsureDefaultAdminUserAsync(db);
+            await EnsureMultiRoleUserAsync(db);
 
             await db.Database.ExecuteSqlRawAsync(@"
 IF COL_LENGTH('dbo.Setting', 'SettingValue') IS NOT NULL AND COL_LENGTH('dbo.Setting', 'SettingValue') < 500
@@ -470,6 +471,40 @@ IF COL_LENGTH('dbo.Setting', 'SettingValue') IS NOT NULL AND COL_LENGTH('dbo.Set
                 Active = true,
                 CreateDate = DateTime.Now
             });
+            await db.SaveChangesAsync();
+        }
+
+        private static async Task EnsureMultiRoleUserAsync(RepositoryDbContext db)
+        {
+            const string nationalCode = "0058715940";
+            var user = await db.Users.FirstOrDefaultAsync(u => u.NationalCode == nationalCode);
+            if (user == null) return;
+
+            var managerRole = await db.UserRole.FirstOrDefaultAsync(r => r.RoleName == "Admin")
+                ?? await db.UserRole.FirstOrDefaultAsync(r => r.RoleName == "مدیر صندوق");
+            if (managerRole == null) return;
+
+            var changed = false;
+            if (user.RoleId != managerRole.RoleId)
+            {
+                user.RoleId = managerRole.RoleId;
+                changed = true;
+            }
+
+            if (user.UserStatus != (byte)UserStatus.Manager)
+            {
+                user.UserStatus = (byte)UserStatus.Manager;
+                changed = true;
+            }
+
+            if (user.Active != true)
+            {
+                user.Active = true;
+                changed = true;
+            }
+
+            if (!changed) return;
+            user.UpdateDate = DateTime.Now;
             await db.SaveChangesAsync();
         }
     }

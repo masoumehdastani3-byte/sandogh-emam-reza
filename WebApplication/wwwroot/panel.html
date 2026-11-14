@@ -3,135 +3,96 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>پنل اعضا | لبخند فردا</title>
-  <link rel="stylesheet" href="css/site.css" />
+  <title>کارهای من | لبخند فردا</title>
+  <link rel="stylesheet" href="css/site.css?v=20261114b" />
   <link rel="icon" href="images/labkhand-logo.png" />
   <style>
+    .simple-hello { font-size: 1.35rem; font-weight: 800; margin: 0 0 .35rem; }
+    .simple-lead { margin: 0; line-height: 1.9; font-size: 1.05rem; }
+    .simple-kicker { margin: 0; color: var(--brand-muted, #5c6b63); font-size: 1rem; }
+    .simple-amount { margin: .35rem 0 .2rem; font-size: 2rem; font-weight: 800; color: var(--brand-green-deep); line-height: 1.3; }
+    .simple-sub { margin: 0 0 1rem; line-height: 1.8; }
+    .big-action { width: 100%; min-height: 56px; font-size: 1.15rem; margin-top: .65rem; }
+    .choice-list { display: flex; flex-direction: column; gap: .55rem; }
+    .choice-list .btn { width: 100%; min-height: 52px; font-size: 1.05rem; }
+    .inst-card {
+      display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; justify-content: space-between;
+      padding: .85rem 0; border-bottom: 1px solid rgba(0,0,0,.08);
+    }
+    .inst-card:last-child { border-bottom: 0; }
+    .inst-card b { display: block; font-size: 1.05rem; }
+    .simple-more summary { cursor: pointer; font-weight: 700; font-size: 1.05rem; }
     .loan-info-banner {
-      margin: 0 0 1rem;
-      padding: .85rem 1rem;
-      border-radius: .75rem;
-      background: var(--brand-green-soft);
-      border-right: 3px solid var(--brand-green);
-      color: var(--brand-charcoal);
-      line-height: 1.8;
-      font-size: .9rem;
+      margin: 0 0 1rem; padding: .85rem 1rem; border-radius: .75rem;
+      background: var(--brand-green-soft); border-right: 3px solid var(--brand-green); line-height: 1.9;
     }
-    .loan-info-banner.warn {
-      background: #fff8e6;
-      border-right-color: #c9a227;
-    }
-    .loan-info-banner strong { color: var(--brand-green-deep); }
+    .loan-info-banner.warn { background: #fff8e6; border-right-color: #c9a227; }
   </style>
 </head>
 <body>
   <div class="page">
     <div class="site-header">
       <a class="brand-lockup" href="index.html">
-        <img src="images/labkhand-logo.png" alt="لوگو" />
-        <div class="titles">
-          <span>پنل اعضا</span>
-        </div>
+        <img src="images/labkhand-logo.png" alt="لبخند فردا" />
+        <div class="titles"><span>کارهای من</span></div>
       </a>
-      <div class="nav" id="panelTopNav">
+      <div class="nav">
         <a href="index.html"><i class="fas fa-home"></i>خانه</a>
-        <a href="profile.html"><i class="fas fa-id-card"></i>پروفایل</a>
         <a href="#" id="panelAuthLink"><i class="fas fa-sign-out-alt"></i>خروج</a>
       </div>
     </div>
 
     <div id="loginRequired" class="card" style="display:none">
-      <h2><i class="fas fa-lock icon-green"></i>ورود لازم است</h2>
-      <p>برای استفاده از پنل ابتدا وارد شوید.</p>
-      <a class="btn primary" id="panelLoginLink" href="login.html?return=panel.html">ورود به سایت</a>
+      <h2>اول وارد شوید</h2>
+      <p>برای دیدن مانده و پرداخت قسط، وارد حساب خود شوید. اگر بله دارید، از همان‌جا هم می‌شود.</p>
+      <a class="btn primary big-action" id="panelLoginLink" href="login.html?return=panel.html">ورود</a>
     </div>
 
     <div id="panelContent">
+      <div id="entrySwitch" class="card entry-switch" style="display:none"></div>
       <div class="card">
-        <div class="panel-top">
-          <h2 style="margin:0;border:0;padding:0"><i class="fas fa-user-circle icon-green"></i>پنل شخصی <span id="userName"></span></h2>
-          <span class="badge"><i class="fas fa-check-circle"></i>عضو صندوق</span>
-        </div>
-        <details class="stats-collapse" id="memberStatsCollapse">
-          <summary>
-            <span><i class="fas fa-chart-pie icon-green"></i> خلاصه وضعیت من</span>
-            <span class="stats-collapse-hint">برای مشاهده آمار بزنید <i class="fas fa-chevron-down stats-collapse-chevron"></i></span>
-          </summary>
-          <div class="stats" id="stats"></div>
-        </details>
+        <p class="simple-hello" id="hello">سلام</p>
+        <p class="simple-lead" id="statusLine">در حال خواندن وضعیت...</p>
+        <a class="btn dark big-action" id="baleLink" href="#" style="display:none">ادامه کار در بله</a>
+        <p class="simple-sub" id="baleHint" style="margin-top:.75rem">اگر با سایت راحت نیستید، همان مانده و پرداخت قسط را در بله انجام دهید.</p>
       </div>
 
-      <div class="tab-menu member-subnav" id="memberTabMenu">
-        <button type="button" class="tab-btn" data-tab="tab-installments"><i class="fas fa-calendar-check"></i>اقساط</button>
-        <button type="button" class="tab-btn" data-tab="tab-loan" id="btnTabLoan"><i class="fas fa-hand-holding-usd"></i>درخواست وام</button>
-        <button type="button" class="tab-btn" data-tab="tab-payments"><i class="fas fa-receipt"></i>پرداخت‌ها</button>
-        <button type="button" class="tab-btn" data-tab="tab-manual"><i class="fas fa-file-invoice-dollar"></i>پرداخت دستی</button>
-        <button type="button" class="tab-btn" data-tab="tab-pay" id="btnTabPay"><i class="fas fa-credit-card"></i>پرداخت آنلاین خیرین</button>
-      </div>
-
-      <div class="card tab-panel" id="tab-loan">
-        <h2><i class="fas fa-hand-holding-usd icon-green"></i>درخواست وام</h2>
-        <p class="muted-text" style="margin-top:0">می‌توانید درخواست وام قرض‌الحسنه ثبت کنید و وضعیت درخواست‌های قبلی خود را ببینید.</p>
-
-        <div id="loanActiveBanner" class="loan-info-banner" style="display:none"></div>
-
-        <div id="loanRequestForm">
-          <label>مبلغ درخواستی (ریال) — سقف: <b id="maxLoan">-</b></label>
-          <input id="loanAmount" type="text" class="amount-input" inputmode="numeric" placeholder="مثال: 10,000,000" />
-          <label>توضیحات (اختیاری)</label>
-          <textarea id="loanDesc" rows="2" placeholder="در صورت نیاز توضیح کوتاه بنویسید"></textarea>
-          <button type="button" class="btn dark block" id="btnLoan"><i class="fas fa-list-ol"></i>ثبت درخواست در صف</button>
-        </div>
-        <div id="loanMsg" class="msg"></div>
-
-        <div class="home-content-sep" style="margin:1.35rem 0 1rem">
-          <h3 class="home-hadith-title" style="font-size:1rem;margin:0"><i class="fas fa-history"></i>درخواست‌های من</h3>
-        </div>
-        <p class="muted-text" style="margin-top:0">همه درخواست‌های ثبت‌شده، نوبت صف و وضعیت تایید/پرداخت در جدول زیر است.</p>
-        <div style="overflow:auto"><table><thead><tr><th>شناسه</th><th>مبلغ</th><th>تاریخ درخواست</th><th>تاریخ پرداخت</th><th>وضعیت</th><th>نوبت صف</th><th>توضیح / دلیل رد</th></tr></thead><tbody id="loanBody"></tbody></table></div>
-      </div>
-
-      <div class="card tab-panel" id="tab-pay">
-        <h2><i class="fas fa-credit-card icon-green"></i>پرداخت آنلاین کمک خیرین (زرین‌پال)</h2>
-        <p class="muted-text" style="margin-top:0;line-height:1.8;padding:.75rem;background:var(--brand-green-soft);border-radius:.65rem;border-right:3px solid var(--brand-green)">
-          <i class="fas fa-info-circle icon-green"></i>
-          پرداخت آنلاین <strong>فقط برای کمک خیرین</strong> است. برای پرداخت <strong>قسط وام</strong> حتماً از تب «اقساط» و دکمه پرداخت همان قسط استفاده کنید.
-        </p>
-        <label>مبلغ کمک (ریال)</label>
-        <input id="payAmount" type="text" class="amount-input" inputmode="numeric" placeholder="مثال: 1,000,000" />
-        <button type="button" class="btn primary block" id="btnPay"><i class="fas fa-university"></i>پرداخت آنلاین</button>
+      <div class="card" id="balanceCard">
+        <p class="simple-kicker">مانده بدهی شما</p>
+        <p class="simple-amount" id="debtAmount">—</p>
+        <p class="simple-sub" id="debtSub"></p>
+        <button type="button" class="btn primary big-action" id="btnPayNext">پرداخت قسط</button>
         <div id="payMsg" class="msg"></div>
       </div>
 
-      <div class="card tab-panel" id="tab-manual">
-        <h2><i class="fas fa-file-invoice-dollar icon-green"></i>ثبت دستی پرداخت</h2>
-        <div class="row">
-          <div><label>مبلغ</label><input id="manualAmount" type="text" class="amount-input" inputmode="numeric" /></div>
-          <div><label>شماره پیگیری</label><input id="manualRef" /></div>
+      <div class="card" id="loanCard">
+        <h2 style="margin-top:0">درخواست وام</h2>
+        <div id="loanActiveBanner" class="loan-info-banner" style="display:none"></div>
+        <div id="loanRequestForm">
+          <p class="simple-lead">یکی از مبلغ‌ها را بزنید. سقف وام: <b id="maxLoan">—</b></p>
+          <div class="choice-list" id="amountButtons"></div>
         </div>
-        <div class="row">
-          <div><label>شماره کارت</label><input id="manualCard" /></div>
-          <div><label>شناسه قسط (اختیاری)</label><input id="manualInstallmentId" type="number" /></div>
-        </div>
-        <label>توضیحات</label>
-        <textarea id="manualDesc" rows="2"></textarea>
-        <button type="button" class="btn dark block" id="btnManual"><i class="fas fa-save"></i>ثبت پرداخت دستی</button>
-        <div id="manualMsg" class="msg"></div>
+        <div id="loanMsg" class="msg"></div>
       </div>
 
-      <div class="card tab-panel" id="tab-installments">
-        <h2><i class="fas fa-calendar-check icon-green"></i>اقساط</h2>
-        <p class="muted-text" style="margin-top:0">برای پرداخت قسط، روی دکمه «پرداخت» در ردیف همان قسط بزنید. در پرداخت آنلاین، کارمزد درگاه زرین‌پال (۰٫۵٪ تا سقف ۱۶٬۰۰۰ تومان + ۵۰۰ تومان ثابت) به مبلغ قسط اضافه می‌شود.</p>
-        <div style="overflow:auto"><table><thead><tr><th>شناسه</th><th>سررسید</th><th>مبلغ قسط</th><th>کارمزد درگاه</th><th>مبلغ پرداخت</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody id="instBody"></tbody></table></div>
+      <div class="card" id="donationCard" style="display:none">
+        <h2 style="margin-top:0">کمک به صندوق</h2>
+        <p class="simple-lead">مبلغ را بنویسید و دکمه را بزنید. صفحه بانک باز می‌شود.</p>
+        <label>مبلغ کمک (تومان)</label>
+        <input id="payAmount" type="text" class="amount-input" inputmode="numeric" placeholder="مثال: 100000" />
+        <button type="button" class="btn primary big-action" id="btnDonate">پرداخت کمک</button>
+        <div id="donateMsg" class="msg"></div>
       </div>
 
-      <div class="card tab-panel" id="tab-payments">
-        <h2><i class="fas fa-receipt icon-green"></i>پرداخت‌ها</h2>
-        <div style="overflow:auto"><table><thead><tr><th>شناسه</th><th>تاریخ</th><th>مبلغ</th><th>نوع</th><th>وضعیت</th></tr></thead><tbody id="payBody"></tbody></table></div>
-      </div>
+      <details class="card simple-more" id="instDetails">
+        <summary>قسط‌های من</summary>
+        <div id="instList"></div>
+      </details>
+
+      <p style="text-align:center;margin:1rem 0 2rem"><a href="profile.html">اصلاح نام و آدرس</a></p>
     </div>
   </div>
-  <script src="js/app.js"></script>
+  <script src="js/app.js?v=20261114b"></script>
   <script>
     GoodLoan.ready(function () {
       const G = GoodLoan;
@@ -139,261 +100,250 @@
       if (!userId) {
         G.$('loginRequired').style.display = 'block';
         G.$('panelContent').style.display = 'none';
-        var returnUrl = 'panel.html' + window.location.search;
-        G.$('panelLoginLink').href = 'login.html?return=' + encodeURIComponent(returnUrl);
+        G.$('panelLoginLink').href = 'login.html?return=' + encodeURIComponent('panel.html' + location.search);
         return;
       }
 
-      async function payInstallmentOnline(installmentId, amount, gatewayFee, payableAmount) {
-        const fee = Number(gatewayFee) || 0;
-        const payable = Number(payableAmount) || amount;
-        const confirmText = 'مبلغ قسط: ' + G.money(amount) +
-          '\nکارمزد درگاه بانک (زرین‌پال): ' + G.money(fee) +
-          '\nمبلغ قابل پرداخت: ' + G.money(payable) +
-          '\n\nکارمزد درگاه به مبلغ قسط اضافه می‌شود. ادامه می‌دهید؟';
-        if (!window.confirm(confirmText)) return;
+      let nextInstallment = null;
+      let installmentItems = [];
 
+      function toman(rial) {
+        return G.formatNumber(Math.round(Number(rial || 0) / 10)) + ' تومان';
+      }
+
+      function amountChoices(maxRial) {
+        const steps = [1000000, 2000000, 3000000, 5000000, 10000000];
+        const list = [];
+        steps.forEach(function (tomanValue) {
+          const rial = tomanValue * 10;
+          if (rial <= maxRial) list.push(rial);
+        });
+        if (maxRial > 0 && list.indexOf(maxRial) < 0) list.push(maxRial);
+        return list;
+      }
+
+      async function payInstallment(inst) {
+        const amount = Number(G.pick(inst, 'installmentAmount')) || 0;
+        const fee = Number(G.pick(inst, 'gatewayFeeAmount')) || 0;
+        const payable = Number(G.pick(inst, 'payableWithGatewayFee')) || (amount + fee);
+        const due = G.pick(inst, 'installmentDate_shansi') || G.shamsiDate(inst, 'installmentDate_shansi', 'installmentDate') || '';
+        const installmentId = G.pick(inst, 'installmentId');
+        const rows = [{ label: 'مبلغ قسط', value: toman(amount) }];
+        if (due) rows.push({ label: 'سررسید', value: due });
+        rows.push({ label: 'کارمزد بانک', value: toman(fee) });
+        rows.push({ label: 'مبلغ پرداخت', value: toman(payable), strong: true });
+        const ok = await G.confirmDialog({
+          title: 'پرداخت قسط',
+          text: 'با ادامه، صفحه بانک باز می‌شود. بعد از پرداخت، نتیجه در بله هم می‌آید.',
+          rows: rows,
+          confirmText: 'رفتن به صفحه بانک',
+          cancelText: 'انصراف'
+        });
+        if (!ok) return;
         const { data } = await G.post('/api/payment/zarinpal/request', {
           userId: userId,
           amount: amount,
           installmentId: installmentId,
           paymentType: 1,
-          description: 'پرداخت قسط شماره ' + installmentId
+          description: 'پرداخت قسط'
         });
         if (!data.success) {
-          G.showMsg(G.$('loanMsg'), data.message || 'خطا در اتصال به درگاه', false);
+          G.showMsg(G.$('payMsg'), data.message || 'صفحه بانک باز نشد', false);
           return;
         }
         const gatewayUrl = G.pick(data.data, 'gatewayUrl');
         if (gatewayUrl) location.href = gatewayUrl;
       }
 
-      G.initTabs('tab-installments');
-      G.initStatsCollapse('#memberStatsCollapse');
-      G.bindAmountInputs('.amount-input');
-      G.initPageTables('#panelContent');
+      function openInstallments(installments) {
+        return (installments || []).filter(function (item) {
+          return Number(G.pick(item, 'installmentStatus')) !== 1;
+        }).sort(function (a, b) {
+          return new Date(G.pick(a, 'installmentDate') || 0) - new Date(G.pick(b, 'installmentDate') || 0);
+        });
+      }
+
+      async function load() {
+        const result = await G.get('/api/panel/' + userId);
+        if (!result.res.ok) {
+          G.showMsg(G.$('payMsg'), (result.data && result.data.message) || 'وضعیت خوانده نشد', false);
+          return;
+        }
+
+        const panel = G.payload(result);
+        const user = G.pick(panel, 'user') || {};
+        const name = G.pick(user, 'fullName') || '';
+        G.$('hello').textContent = name ? 'سلام ' + name : 'سلام';
+        if (G.pick(user, 'nationalCode')) {
+          localStorage.setItem('gl_nationalCode', G.normalizeNationalCode(G.pick(user, 'nationalCode')));
+          localStorage.setItem('gl_roleId', G.pick(user, 'roleId') || localStorage.getItem('gl_roleId') || '');
+          localStorage.setItem('gl_roleName', G.pick(user, 'roleName') || localStorage.getItem('gl_roleName') || '');
+          localStorage.setItem('gl_userStatus', G.pick(user, 'userStatus') || localStorage.getItem('gl_userStatus') || '');
+        }
+        G.mountEntrySwitcher(G.$('entrySwitch'));
+
+        const isDonator = G.panelIsDonor(user);
+        G.$('instDetails').style.display = isDonator ? 'none' : 'block';
+        G.$('loanCard').style.display = isDonator ? 'none' : 'block';
+        G.$('donationCard').style.display = isDonator ? 'block' : 'none';
+        G.$('balanceCard').style.display = isDonator ? 'none' : 'block';
+
+        const loans = G.pick(panel, 'loans') || [];
+        const waiting = loans.find(function (l) { return Number(G.pick(l, 'loanRequestStatus')) === 1; });
+        const activeLoan = loans.find(function (l) {
+          return Number(G.pick(l, 'loanRequestStatus')) === 2 && Number(G.pick(l, 'loanStatus')) !== 1;
+        });
+        const banner = G.$('loanActiveBanner');
+        const form = G.$('loanRequestForm');
+        if (isDonator) {
+          banner.style.display = 'none';
+          form.style.display = 'none';
+          G.$('statusLine').textContent = 'به‌عنوان خیر وارد شده‌اید. مبلغ کمک را پایین بنویسید.';
+        } else if (waiting) {
+          banner.style.display = 'block';
+          banner.className = 'loan-info-banner';
+          banner.textContent = 'درخواست وام شما ثبت شده و در نوبت است. هر وقت نوبت شما شود، در بله خبر می‌دهیم.';
+          form.style.display = 'none';
+          G.$('statusLine').textContent = 'درخواست شما در نوبت است.';
+        } else if (activeLoan) {
+          banner.style.display = 'block';
+          banner.className = 'loan-info-banner warn';
+          banner.textContent = 'یک وام باز دارید. بعد از تمام شدن قسط‌ها می‌توانید دوباره درخواست دهید.';
+          form.style.display = 'none';
+          G.$('statusLine').textContent = 'وام شما پرداخت شده. قسط‌ها را از اینجا یا از بله بپردازید.';
+        } else {
+          banner.style.display = 'none';
+          form.style.display = 'block';
+          G.$('statusLine').textContent = loans.length
+            ? 'وام قبلی تمام شده. اگر لازم است دوباره درخواست دهید.'
+            : 'هنوز وام نگرفته‌اید. اگر نیاز دارید پایین مبلغ را انتخاب کنید.';
+        }
+
+        const installments = G.pick(panel, 'installments') || [];
+        installmentItems = installments;
+        const open = openInstallments(installments);
+        const debt = open.reduce(function (sum, item) { return sum + (Number(G.pick(item, 'installmentAmount')) || 0); }, 0);
+        nextInstallment = open[0] || null;
+        G.$('debtAmount').textContent = toman(debt);
+        G.$('debtSub').textContent = open.length
+          ? 'قسط مانده: ' + open.length + ' — بعدی: ' + toman(G.pick(nextInstallment, 'installmentAmount'))
+          : 'قسط بازی ندارید.';
+        G.$('btnPayNext').style.display = nextInstallment ? 'inline-flex' : 'none';
+
+        const maxLoan = Number(G.pick(panel, 'maxLoanAmount')) || 0;
+        G.$('maxLoan').textContent = toman(maxLoan);
+        G.$('amountButtons').innerHTML = amountChoices(maxLoan).map(function (rial) {
+          return '<button type="button" class="btn dark btn-loan-choice" data-amount="' + rial + '">' + toman(rial) + '</button>';
+        }).join('');
+
+        if (G.pick(user, 'monthlyDonationAmount')) {
+          G.setAmountValue('payAmount', Math.round(Number(G.pick(user, 'monthlyDonationAmount')) / 10));
+        }
+
+        G.$('instList').innerHTML = installments.length ? installments.map(function (item) {
+          const paid = Number(G.pick(item, 'installmentStatus')) === 1;
+          const id = G.pick(item, 'installmentId');
+          const amount = Number(G.pick(item, 'installmentAmount')) || 0;
+          const due = G.pick(item, 'installmentDate_shansi') || G.shamsiDate(item, 'installmentDate_shansi', 'installmentDate') || '';
+          const action = paid
+            ? '<span>پرداخت شده</span>'
+            : '<button type="button" class="btn primary btn-pay-one" data-id="' + id + '">پرداخت</button>';
+          return '<div class="inst-card"><div><b>' + toman(amount) + '</b><span>' + due + '</span></div>' + action + '</div>';
+        }).join('') : '<p>قسطی ثبت نشده است.</p>';
+
+        const linkResult = await G.get('/api/bale/bot-link/' + userId);
+        const botLink = G.pick(G.payload(linkResult) || {}, 'botLink');
+        if (botLink) {
+          const link = G.$('baleLink');
+          link.href = botLink;
+          link.style.display = 'inline-flex';
+        }
+
+        const params = new URLSearchParams(location.search);
+        const payInstId = Number(params.get('installmentId') || 0);
+        if (payInstId && params.get('payInstallment') === '1') {
+          const inst = installments.find(function (i) { return Number(G.pick(i, 'installmentId')) === payInstId; });
+          if (inst && Number(G.pick(inst, 'installmentStatus')) !== 1) {
+            await payInstallment(inst);
+          }
+          if (history.replaceState) history.replaceState({}, '', 'panel.html');
+        }
+      }
 
       G.bindClick('panelAuthLink', function (e) {
         e.preventDefault();
         G.logout();
       });
 
-      function escapeHtml(text) {
-        return String(text == null ? '' : text)
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;');
-      }
-
-      function updateLoanRequestUi(loans, myQueuePosition) {
-        const form = G.$('loanRequestForm');
-        const banner = G.$('loanActiveBanner');
-        const waiting = loans.find(function (l) { return Number(G.pick(l, 'loanRequestStatus')) === 1; });
-        const activeDisbursed = loans.find(function (l) {
-          return Number(G.pick(l, 'loanRequestStatus')) === 2 && Number(G.pick(l, 'loanStatus')) !== 1;
-        });
-
-        if (waiting) {
-          banner.style.display = 'block';
-          banner.className = 'loan-info-banner';
-          banner.innerHTML = '<i class="fas fa-hourglass-half icon-green"></i> درخواست شما در <strong>صف انتظار</strong> است'
-            + (myQueuePosition ? ' — نوبت شما: <strong>' + myQueuePosition + '</strong>' : '')
-            + '. تا تعیین تکلیف این درخواست، امکان ثبت درخواست جدید نیست.';
-          form.style.display = 'none';
-          return;
-        }
-
-        if (activeDisbursed) {
-          banner.style.display = 'block';
-          banner.className = 'loan-info-banner warn';
-          banner.innerHTML = '<i class="fas fa-info-circle"></i> یک وام فعال دارید. پس از تسویه اقساط می‌توانید دوباره درخواست دهید.';
-          form.style.display = 'none';
-          return;
-        }
-
-        banner.style.display = 'none';
-        banner.innerHTML = '';
-        form.style.display = 'block';
-      }
-
-      function installmentRowClass(item) {
-        const isPaid = Number(G.pick(item, 'installmentStatus')) === 1;
-        if (isPaid) return 'inst-row-paid';
-
-        const dueRaw = G.pick(item, 'installmentDate');
-        if (!dueRaw) return '';
-        const due = new Date(dueRaw);
-        if (isNaN(due.getTime())) return '';
-
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        due.setHours(0, 0, 0, 0);
-        const diffDays = Math.round((due - today) / (1000 * 60 * 60 * 24));
-
-        if (diffDays <= 3) return 'inst-row-due-soon';
-        return '';
-      }
-
-      async function load() {
-        const result = await G.get('/api/panel/' + userId);
-        if (!result.res.ok) {
-          G.showMsg(G.$('loanMsg'), result.data.message || 'خطا در بارگذاری پنل', false);
-          return;
-        }
-
-        const panel = G.payload(result);
-        const user = G.pick(panel, 'user');
-        G.$('userName').textContent = G.pick(user, 'fullName') || '';
-        G.$('maxLoan').textContent = G.money(G.pick(panel, 'maxLoanAmount'));
-
-        if (G.pick(user, 'monthlyDonationAmount')) G.setAmountValue('payAmount', G.pick(user, 'monthlyDonationAmount'));
-        const isDonator = Number(G.pick(user, 'roleId')) === 3;
-        if (isDonator) {
-          G.$('btnTabLoan').style.display = 'none';
-          G.$('tab-loan').style.display = 'none';
-          if (!new URLSearchParams(location.search).get('installmentId') && !new URLSearchParams(location.search).get('pay')) {
-            G.openTab('tab-pay');
-          }
-        } else {
-          G.$('btnTabPay').style.display = 'none';
-        }
-
-        G.$('stats').innerHTML = `
-          <div class="stat"><span class="stat-icon"><i class="fas fa-users"></i></span><span>افراد در صف</span><b>${G.pick(panel, 'waitingQueueCount')}</b></div>
-          <div class="stat"><span class="stat-icon"><i class="fas fa-sort-numeric-down"></i></span><span>نوبت من</span><b>${G.pick(panel, 'myQueuePosition') || '-'}</b></div>
-          <div class="stat"><span class="stat-icon"><i class="fas fa-exclamation-circle"></i></span><span>بدهی مانده</span><b>${G.money(G.pick(panel, 'totalDebt'))}</b></div>
-          <div class="stat"><span class="stat-icon"><i class="fas fa-wallet"></i></span><span>موجودی صندوق</span><b>${G.money(G.pick(panel, 'fundBalance'))}</b></div>`;
-
-        const loans = G.pick(panel, 'loans') || [];
-        updateLoanRequestUi(loans, G.pick(panel, 'myQueuePosition'));
-        G.$('loanBody').innerHTML = loans.length ? loans.map(function (l) {
-          const note = G.pick(l, 'rejectReason') || G.pick(l, 'description') || '—';
-          const queuePos = Number(G.pick(l, 'loanRequestStatus')) === 1
-            ? (G.pick(l, 'queuePosition') || '-')
-            : '—';
-          return '<tr><td>' + G.pick(l, 'loanId') + '</td><td class="amount">' + G.money(G.pick(l, 'loanAmount')) + '</td><td>' +
-            G.shamsiDate(l, 'requestDate_Shamsi', 'requestDate') + '</td><td>' +
-            G.shamsiDate(l, 'paymentDate_Shamsi', 'paymentDate') + '</td><td>' +
-            G.loanStatusText(l) + '</td><td>' + queuePos + '</td><td>' + escapeHtml(note) + '</td></tr>';
-        }).join('') : '<tr><td colspan="7">هنوز درخواستی ثبت نکرده‌اید</td></tr>';
-
-        const installments = G.pick(panel, 'installments') || [];
-        G.$('instBody').innerHTML = installments.length ? installments.map(function (i) {
-          const installmentId = G.pick(i, 'installmentId');
-          const amount = Number(G.pick(i, 'installmentAmount')) || 0;
-          const gatewayFee = Number(G.pick(i, 'gatewayFeeAmount')) || 0;
-          const payable = Number(G.pick(i, 'payableWithGatewayFee')) || (amount + gatewayFee);
-          const isPaid = Number(G.pick(i, 'installmentStatus')) === 1;
-          const statusText = isPaid ? 'تسویه' : 'مانده';
-          const feeCell = isPaid
-            ? '<span class="muted-text">—</span>'
-            : G.money(gatewayFee);
-          const payableCell = isPaid
-            ? G.money(amount)
-            : '<strong>' + G.money(payable) + '</strong>';
-          const actionCell = isPaid
-            ? '<span class="muted-text">—</span>'
-            : '<button type="button" class="btn primary btn-pay-installment btn-compact-table" data-id="' + installmentId + '" data-amount="' + amount + '" data-fee="' + gatewayFee + '" data-payable="' + payable + '">پرداخت</button>';
-          const rowClass = installmentRowClass(i);
-          return '<tr' + (rowClass ? ' class="' + rowClass + '"' : '') + '><td>' + installmentId + '</td><td>' + (G.pick(i, 'installmentDate_shansi') || G.shamsiDate(i, 'installmentDate_shansi', 'installmentDate') || '') + '</td><td class="amount">' + G.money(amount) + '</td><td class="amount">' + feeCell + '</td><td class="amount">' + payableCell + '</td><td>' + statusText + '</td><td class="table-actions">' + actionCell + '</td></tr>';
-        }).join('') : '<tr><td colspan="7">قسطی ثبت نشده</td></tr>';
-
-        const payments = G.pick(panel, 'payments') || [];
-        G.$('payBody').innerHTML = payments.length ? payments.map(function (p) {
-          return '<tr><td>' + G.pick(p, 'paymentId') + '</td><td>' + (G.pick(p, 'paymentDate_Shamsi') || '') + '</td><td class="amount">' + G.money(G.pick(p, 'amount')) + '</td><td>' + (G.pick(p, 'paymentTypeName') || G.pick(p, 'paymentType')) + '</td><td>' + (G.pick(p, 'gatewayStatusName') || G.pick(p, 'gatewayStatus')) + '</td></tr>';
-        }).join('') : '<tr><td colspan="5">پرداختی ثبت نشده</td></tr>';
-
-        G.refreshDataTable('loanBody');
-        G.refreshDataTable('instBody');
-        G.refreshDataTable('payBody');
-
-        const params = new URLSearchParams(location.search);
-        const payInstId = Number(params.get('installmentId') || 0);
-        const autoPay = params.get('payInstallment') === '1';
-        if (payInstId) {
-          G.openTab('tab-installments');
-          const inst = installments.find(function (i) { return Number(G.pick(i, 'installmentId')) === payInstId; });
-          if (autoPay && inst && Number(G.pick(inst, 'installmentStatus')) !== 1) {
-            await payInstallmentOnline(
-              payInstId,
-              Number(G.pick(inst, 'installmentAmount')) || 0,
-              Number(G.pick(inst, 'gatewayFeeAmount')) || 0,
-              Number(G.pick(inst, 'payableWithGatewayFee')) || 0
-            );
-          }
-          if (history.replaceState) history.replaceState({}, '', 'panel.html');
-        } else if (params.get('pay') === 'donation' && isDonator) {
-          G.openTab('tab-pay');
-          if (history.replaceState) history.replaceState({}, '', 'panel.html');
-        }
-      }
-
-      G.bindClick('btnLoan', async function () {
-        const amount = G.getAmountValue('loanAmount');
-        if (!amount || amount <= 0) {
-          G.showMsg(G.$('loanMsg'), 'مبلغ درخواست را وارد کنید', false);
-          return;
-        }
-
-        const btn = G.$('btnLoan');
-        btn.disabled = true;
-        const { data } = await G.post('/api/loan/request', {
-          userId: userId,
-          loanAmount: amount,
-          description: G.$('loanDesc').value
-        });
-        btn.disabled = false;
-        G.showMsg(G.$('loanMsg'), data.message || 'خطا', data.success);
-        if (data.success) {
-          G.setAmountValue('loanAmount', '');
-          G.$('loanDesc').value = '';
-          G.openTab('tab-loan');
-          load();
-        }
+      G.bindClick('btnPayNext', async function () {
+        if (!nextInstallment) return;
+        G.$('btnPayNext').disabled = true;
+        await payInstallment(nextInstallment);
+        G.$('btnPayNext').disabled = false;
       });
 
-      G.bindClick('btnPay', async function () {
+      G.bindAmountInputs('.amount-input');
+      G.bindClick('btnDonate', async function () {
+        const tomanAmount = G.getAmountValue('payAmount');
+        if (!tomanAmount) {
+          G.showMsg(G.$('donateMsg'), 'مبلغ کمک را بنویسید', false);
+          return;
+        }
+        const ok = await G.confirmDialog({
+          title: 'پرداخت کمک',
+          text: 'با ادامه، صفحه بانک باز می‌شود.',
+          rows: [{ label: 'مبلغ کمک', value: G.formatNumber(tomanAmount) + ' تومان', strong: true }],
+          confirmText: 'رفتن به صفحه بانک',
+          cancelText: 'انصراف'
+        });
+        if (!ok) return;
         const { data } = await G.post('/api/payment/zarinpal/request', {
           userId: userId,
-          amount: G.getAmountValue('payAmount'),
+          amount: tomanAmount * 10,
           installmentId: null,
           paymentType: 2,
-          description: 'کمک خیرین از پنل'
+          description: 'کمک خیرین'
         });
-        G.showMsg(G.$('payMsg'), data.message || 'خطا', data.success);
+        G.showMsg(G.$('donateMsg'), data.message || 'خطا', data.success);
         const gatewayUrl = G.pick(data.data, 'gatewayUrl');
         if (data.success && gatewayUrl) location.href = gatewayUrl;
       });
 
-      G.bindClick('btnManual', async function () {
-        const { data } = await G.post('/api/payment/manual', {
-          userId: userId,
-          amount: G.getAmountValue('manualAmount'),
-          installmentId: G.$('manualInstallmentId').value ? Number(G.$('manualInstallmentId').value) : null,
-          paymentType: G.$('manualInstallmentId').value ? 1 : 3,
-          refrenceNumber: G.$('manualRef').value,
-          cardNumber: G.$('manualCard').value,
-          description: G.$('manualDesc').value,
-          confirmUserId: userId
-        });
-        G.showMsg(G.$('manualMsg'), data.message || 'خطا', data.success);
-        if (data.success) load();
-      });
-
       document.addEventListener('click', async function (e) {
-        const payBtn = e.target.closest('.btn-pay-installment');
-        if (!payBtn || !G.$('instBody').contains(payBtn)) return;
+        const choice = e.target.closest('.btn-loan-choice');
+        if (choice && G.$('amountButtons').contains(choice)) {
+          const amount = Number(choice.getAttribute('data-amount'));
+          const ok = await G.confirmDialog({
+            title: 'درخواست وام',
+            text: 'درخواست در نوبت قرار می‌گیرد. تعداد افراد صف به شما نشان داده نمی‌شود.',
+            rows: [{ label: 'مبلغ', value: toman(amount), strong: true }],
+            confirmText: 'ثبت درخواست',
+            cancelText: 'انصراف'
+          });
+          if (!ok) return;
+          choice.disabled = true;
+          const { data } = await G.post('/api/loan/request', {
+            userId: userId,
+            loanAmount: amount,
+            description: 'درخواست از سایت'
+          });
+          choice.disabled = false;
+          G.showMsg(G.$('loanMsg'), data.message || 'ثبت نشد', data.success);
+          if (data.success) load();
+          return;
+        }
 
-        const installmentId = Number(payBtn.getAttribute('data-id'));
-        const amount = Number(payBtn.getAttribute('data-amount'));
-        const fee = Number(payBtn.getAttribute('data-fee'));
-        const payable = Number(payBtn.getAttribute('data-payable'));
-        if (!installmentId || amount <= 0) return;
-
-        payBtn.disabled = true;
-        await payInstallmentOnline(installmentId, amount, fee, payable);
-        payBtn.disabled = false;
+        const payBtn = e.target.closest('.btn-pay-one');
+        if (payBtn && G.$('instList').contains(payBtn)) {
+          const installmentId = Number(payBtn.getAttribute('data-id'));
+          const inst = installmentItems.find(function (item) {
+            return Number(G.pick(item, 'installmentId')) === installmentId;
+          });
+          if (!inst) return;
+          payBtn.disabled = true;
+          await payInstallment(inst);
+          payBtn.disabled = false;
+        }
       });
 
       load();

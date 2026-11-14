@@ -10,7 +10,11 @@ using Microsoft.OpenApi.Models;
 using Persistence;
 using Services;
 using Services.Abstractions;
+using System;
 using System.IO;
+using System.Net.Http;
+using System.Net.Security;
+using System.Security.Authentication;
 using WebApplication.Middleware;
 
 namespace WebApplication
@@ -41,6 +45,30 @@ namespace WebApplication
 
             services.AddAutoMapper(System.AppDomain.CurrentDomain.GetAssemblies());
             services.AddHttpClient();
+            services.AddHttpClient("NikooPayment")
+                .ConfigurePrimaryHttpMessageHandler(sp =>
+                {
+                    var config = sp.GetRequiredService<IConfiguration>();
+                    var env = sp.GetRequiredService<IWebHostEnvironment>();
+                    var allowUntrusted = env.IsDevelopment() &&
+                        string.Equals(config["NikooPayment:AllowUntrustedCertificate"], "true", StringComparison.OrdinalIgnoreCase);
+
+                    var handler = new SocketsHttpHandler
+                    {
+                        SslOptions = new System.Net.Security.SslClientAuthenticationOptions
+                        {
+                            EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13
+                        }
+                    };
+
+                    if (allowUntrusted)
+                    {
+                        handler.SslOptions.RemoteCertificateValidationCallback =
+                            static (_, _, _, _) => true;
+                    }
+
+                    return handler;
+                });
             services.AddScoped<IServiceManager, ServiceManager>();
             services.AddScoped<IRepositoryManager, RepositoryManager>();
             services.AddSingleton(Configuration);

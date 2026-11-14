@@ -52,7 +52,7 @@ namespace WebApplication.HostedServices
                 {
                     using var scope = _scopeFactory.CreateScope();
                     var services = scope.ServiceProvider.GetRequiredService<IServiceManager>();
-                    var result = await services.BaleService.PollAndBindChatIdsAsync(stoppingToken);
+                    var result = await services.BaleMenuService.PollAsync(stoppingToken);
                     if (result.Success)
                         _logger.LogDebug("Bale poll: {Message}", result.Message);
                     else

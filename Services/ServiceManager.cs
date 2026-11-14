@@ -16,6 +16,7 @@ namespace Services
         private readonly Lazy<IPaymentService> _lazyPaymentService;
         private readonly Lazy<IMemberPanelService> _lazyMemberPanelService;
         private readonly Lazy<IBaleService> _lazyBaleService;
+        private readonly Lazy<IBaleMenuService> _lazyBaleMenuService;
         private readonly Lazy<IZarinPalService> _lazyZarinPalService;
         private readonly Lazy<INationalIdVerifyService> _lazyNationalIdVerifyService;
         private readonly Lazy<INotificationSchedulerService> _lazyNotificationSchedulerService;
@@ -47,6 +48,12 @@ namespace Services
                 new NotificationSchedulerService(repositoryManager, BaleService, LoanService, mapper, configuration));
             _lazyAdminService = new Lazy<IAdminService>(() => new AdminService(repositoryManager, mapper));
             _lazyRoleMenuService = new Lazy<IRoleMenuService>(() => new RoleMenuService(repositoryManager, AdminService, mapper));
+            _lazyBaleMenuService = new Lazy<IBaleMenuService>(() => new BaleMenuService(
+                (BaleService)_lazyBaleService.Value,
+                repositoryManager,
+                configuration,
+                LoanService,
+                PaymentService));
         }
 
         public IUserService UserService => _lazyUserService.Value;
@@ -56,6 +63,7 @@ namespace Services
         public IPaymentService PaymentService => _lazyPaymentService.Value;
         public IMemberPanelService MemberPanelService => _lazyMemberPanelService.Value;
         public IBaleService BaleService => _lazyBaleService.Value;
+        public IBaleMenuService BaleMenuService => _lazyBaleMenuService.Value;
         public IZarinPalService ZarinPalService => _lazyZarinPalService.Value;
         public INationalIdVerifyService NationalIdVerifyService => _lazyNationalIdVerifyService.Value;
         public INotificationSchedulerService NotificationSchedulerService => _lazyNotificationSchedulerService.Value;

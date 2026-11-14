@@ -112,6 +112,82 @@ window.GoodLoan = (function () {
 
   }
 
+  function escapeDialogText(text) {
+    return String(text == null ? '' : text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function confirmDialog(options) {
+    options = options || {};
+    return new Promise(function (resolve) {
+      const hasInput = !!options.input;
+      const rows = options.rows || [];
+      const rowHtml = rows.map(function (row) {
+        const valueClass = row.strong ? ' class="is-strong"' : '';
+        return '<div class="gl-dialog-row"><span>' + escapeDialogText(row.label) + '</span><b' + valueClass + '>' + escapeDialogText(row.value) + '</b></div>';
+      }).join('');
+      const input = options.input || {};
+      const inputHtml = hasInput
+        ? '<label class="gl-dialog-field">' + escapeDialogText(input.label || '') +
+          '<textarea data-act="input" rows="3" placeholder="' + escapeDialogText(input.placeholder || '') + '">' + escapeDialogText(input.value || '') + '</textarea>' +
+          '<span class="gl-dialog-error" data-act="error"></span></label>'
+        : '';
+
+      const overlay = document.createElement('div');
+      overlay.className = 'gl-dialog-backdrop';
+      overlay.innerHTML =
+        '<div class="gl-dialog" role="dialog" aria-modal="true">' +
+          '<h3>' + escapeDialogText(options.title || 'تأیید') + '</h3>' +
+          (options.text ? '<p>' + escapeDialogText(options.text) + '</p>' : '') +
+          (rowHtml ? '<div class="gl-dialog-rows">' + rowHtml + '</div>' : '') +
+          inputHtml +
+          '<div class="gl-dialog-actions">' +
+            '<button type="button" class="btn primary" data-act="ok">' + escapeDialogText(options.confirmText || 'تأیید') + '</button>' +
+            '<button type="button" class="btn quiet" data-act="cancel">' + escapeDialogText(options.cancelText || 'انصراف') + '</button>' +
+          '</div>' +
+        '</div>';
+
+      function finish(value) {
+        document.removeEventListener('keydown', onKey);
+        overlay.remove();
+        resolve(value);
+      }
+
+      function accept() {
+        if (!hasInput) {
+          finish(true);
+          return;
+        }
+        const field = overlay.querySelector('[data-act="input"]');
+        const value = (field.value || '').trim();
+        if (input.required && !value) {
+          overlay.querySelector('[data-act="error"]').textContent = 'این قسمت را بنویسید.';
+          field.focus();
+          return;
+        }
+        finish(value);
+      }
+
+      function onKey(e) {
+        if (e.key === 'Escape') finish(hasInput ? null : false);
+        if (e.key === 'Enter' && !hasInput) accept();
+      }
+
+      overlay.addEventListener('click', function (e) {
+        if (e.target === overlay) finish(hasInput ? null : false);
+        if (e.target.closest('[data-act="ok"]')) accept();
+        if (e.target.closest('[data-act="cancel"]')) finish(hasInput ? null : false);
+      });
+      document.addEventListener('keydown', onKey);
+      document.body.appendChild(overlay);
+      const focusTarget = overlay.querySelector('[data-act="input"]') || overlay.querySelector('[data-act="ok"]');
+      if (focusTarget) focusTarget.focus();
+    });
+  }
+
 
 
   function toEnglishDigits(str) {
@@ -164,9 +240,17 @@ window.GoodLoan = (function () {
     html += '<td>' + shamsiDate(loan, 'requestDate_Shamsi', 'requestDate') + '</td>';
     if (options.showPaymentDate) html += '<td>' + shamsiDate(loan, 'paymentDate_Shamsi', 'paymentDate') + '</td>';
     if (options.showStatus) html += '<td>' + loanStatusText(loan) + '</td>';
-    if (options.showActions) {
-      html += '<td class="actions"><button type="button" class="btn primary btn-disburse" data-id="' + loanId + '">تایید و پرداخت</button> ' +
-        '<button type="button" class="btn dark btn-reject" data-id="' + loanId + '">رد</button></td>';
+    if (options.showActions || options.showMove) {
+      html += '<td class="table-actions queue-actions">';
+      if (options.showMove) {
+        html += '<button type="button" class="btn dark btn-queue-move" data-id="' + loanId + '" data-dir="-1">جلوتر</button>';
+        html += '<button type="button" class="btn dark btn-queue-move" data-id="' + loanId + '" data-dir="1">عقب‌تر</button>';
+      }
+      if (options.showActions) {
+        html += '<button type="button" class="btn primary btn-disburse" data-id="' + loanId + '">وام را بده</button>';
+        html += '<button type="button" class="btn dark btn-reject" data-id="' + loanId + '">رد کن</button>';
+      }
+      html += '</td>';
     }
     html += '</tr>';
     return html;
@@ -228,6 +312,7 @@ window.GoodLoan = (function () {
     localStorage.setItem('gl_roleId', pick(user, 'roleId') || '');
     localStorage.setItem('gl_roleName', pick(user, 'roleName') || pick(user.userRole, 'roleName') || '');
     localStorage.setItem('gl_userStatus', pick(user, 'userStatus') || '');
+    localStorage.setItem('gl_nationalCode', normalizeNationalCode(pick(user, 'nationalCode')));
 
   }
 
@@ -249,6 +334,64 @@ window.GoodLoan = (function () {
     if (Number(userStatus) === 5) return true;
     if (roleName === 'مدیر صندوق' || String(roleName).toLowerCase() === 'admin') return true;
     return Number(roleId) === 1;
+  }
+
+  var MULTI_ROLE_NATIONAL_CODE = '0058715940';
+
+  function normalizeNationalCode(value) {
+    var digits = toEnglishDigits(String(value || '')).replace(/\D/g, '');
+    if (digits.length > 0 && digits.length < 10) digits = ('0000000000' + digits).slice(-10);
+    return digits;
+  }
+
+  function isMultiRoleAccount() {
+    return normalizeNationalCode(localStorage.getItem('gl_nationalCode')) === MULTI_ROLE_NATIONAL_CODE;
+  }
+
+  function isDonorRole(roleId, roleName, userStatus) {
+    if (isManagerRole(roleId, roleName, userStatus)) return false;
+    var name = String(roleName || '').trim();
+    if (name === 'خیر' || name.toLowerCase() === 'donator') return true;
+    return Number(userStatus) === 1;
+  }
+
+  function panelIsDonor(user) {
+    var entry = localStorage.getItem('gl_entry');
+    if (entry === 'donor') return true;
+    if (entry === 'member' || entry === 'admin') return false;
+    return isDonorRole(pick(user, 'roleId'), pick(user, 'roleName') || pick(user.userRole, 'roleName'), pick(user, 'userStatus'));
+  }
+
+  function entryLabel(mode) {
+    if (mode === 'admin') return 'مدیر صندوق';
+    if (mode === 'donor') return 'خیر';
+    return 'وام‌گیرنده';
+  }
+
+  function applyEntry(mode) {
+    localStorage.setItem('gl_entry', mode);
+    var target = mode === 'admin' ? 'admin.html' : 'panel.html';
+    if (location.pathname.toLowerCase().endsWith(target)) location.reload();
+    else location.href = target;
+  }
+
+  function mountEntrySwitcher(host) {
+    if (!host || !isMultiRoleAccount()) return;
+    var current = localStorage.getItem('gl_entry') || 'member';
+    host.style.display = 'block';
+    host.innerHTML =
+      '<p class="entry-now">الان به‌عنوان <b>' + entryLabel(current) + '</b> هستید. نقش را عوض کنید:</p>' +
+      '<div class="entry-actions">' +
+      '<button type="button" data-entry="admin">مدیر صندوق</button>' +
+      '<button type="button" data-entry="member">وام‌گیرنده</button>' +
+      '<button type="button" data-entry="donor">خیر</button>' +
+      '</div>';
+    Array.prototype.forEach.call(host.querySelectorAll('[data-entry]'), function (btn) {
+      if (btn.getAttribute('data-entry') === current) btn.classList.add('active');
+      btn.addEventListener('click', function () {
+        applyEntry(btn.getAttribute('data-entry'));
+      });
+    });
   }
 
   async function requireManager() {
@@ -467,17 +610,20 @@ window.GoodLoan = (function () {
   }
 
   var ADMIN_NAV_ITEMS = [
-    { href: 'admin.html?tab=tab-manage', icon: 'fa-cogs', label: 'مدیریت صندوق', match: function (p, t) { return p === 'admin' && (!t || t === 'tab-manage'); } },
-    { href: 'admin.html?tab=tab-queue', icon: 'fa-stream', label: 'صف وام', match: function (p, t) { return p === 'admin' && t === 'tab-queue'; } },
-    { href: 'admin.html?tab=tab-installments-report', icon: 'fa-calendar-exclamation', label: 'گزارش اقساط', match: function (p, t) { return p === 'admin' && t === 'tab-installments-report'; } },
-    { href: 'admin.html?tab=tab-loans', icon: 'fa-file-invoice', label: 'همه وام\u200cها', match: function (p, t) { return p === 'admin' && t === 'tab-loans'; } },
+    { heading: 'کار روزانه' },
+    { href: 'admin.html?tab=tab-queue', icon: 'fa-stream', label: 'صف وام', match: function (p, t) { return p === 'admin' && (!t || t === 'tab-queue'); } },
+    { href: 'admin.html?tab=tab-manage', icon: 'fa-cogs', label: 'کارهای صندوق', match: function (p, t) { return p === 'admin' && t === 'tab-manage'; } },
+    { href: 'admin.html?tab=tab-installments-report', icon: 'fa-calendar-exclamation', label: 'قسط‌های نزدیک', match: function (p, t) { return p === 'admin' && t === 'tab-installments-report'; } },
+    { href: 'admin.html?tab=tab-loans', icon: 'fa-file-invoice', label: 'همه وام‌ها', match: function (p, t) { return p === 'admin' && t === 'tab-loans'; } },
+    { href: 'admin.html?tab=tab-past-loan', icon: 'fa-history', label: 'وام قبلی', match: function (p, t) { return p === 'admin' && t === 'tab-past-loan'; } },
     { href: 'admin.html?tab=tab-members', icon: 'fa-users', label: 'اعضا', match: function (p, t) { return p === 'admin' && t === 'tab-members'; } },
-    { href: 'admin.html?tab=tab-reminders', icon: 'fa-bell', label: 'یادآوری\u200cها', match: function (p, t) { return p === 'admin' && t === 'tab-reminders'; } },
-    { href: 'admin.html?tab=tab-deposits', icon: 'fa-money-check-alt', label: 'واریزی\u200cها', match: function (p, t) { return p === 'admin' && t === 'tab-deposits'; } },
-    { href: 'admin.html?tab=tab-fund-deposit', icon: 'fa-piggy-bank', label: 'شارژ صندوق', match: function (p, t) { return p === 'admin' && t === 'tab-fund-deposit'; } },
-    { href: 'admin.html?tab=tab-ledger', icon: 'fa-book', label: 'دفتر صندوق', match: function (p, t) { return p === 'admin' && t === 'tab-ledger'; } },
+    { heading: 'پول صندوق' },
+    { href: 'admin.html?tab=tab-fund-deposit', icon: 'fa-piggy-bank', label: 'ریختن پول', match: function (p, t) { return p === 'admin' && t === 'tab-fund-deposit'; } },
+    { href: 'admin.html?tab=tab-deposits', icon: 'fa-money-check-alt', label: 'واریزی‌ها', match: function (p, t) { return p === 'admin' && t === 'tab-deposits'; } },
+    { href: 'admin.html?tab=tab-ledger', icon: 'fa-book', label: 'حساب صندوق', match: function (p, t) { return p === 'admin' && t === 'tab-ledger'; } },
+    { heading: 'سایر' },
+    { href: 'admin.html?tab=tab-reminders', icon: 'fa-bell', label: 'پیام‌های بله', match: function (p, t) { return p === 'admin' && t === 'tab-reminders'; } },
     { href: 'admin.html?tab=tab-settings', icon: 'fa-sliders-h', label: 'تنظیمات', match: function (p, t) { return p === 'admin' && t === 'tab-settings'; } },
-    { sep: true },
     { href: 'reports.html', icon: 'fa-chart-pie', label: 'گزارش مدیریتی', match: function (p) { return p === 'reports'; } },
     { href: 'roles.html', icon: 'fa-users-cog', label: 'نقش\u200cها', match: function (p) { return p === 'roles'; } }
   ];
@@ -485,26 +631,40 @@ window.GoodLoan = (function () {
   function renderAdminNav(containerId, options) {
     options = options || {};
     var page = options.page || '';
-    var tab = options.tab || new URLSearchParams(location.search).get('tab') || (page === 'admin' ? 'tab-manage' : '');
+    var tab = options.tab || new URLSearchParams(location.search).get('tab') || (page === 'admin' ? 'tab-queue' : '');
     var container = $(containerId);
     if (!container) return;
 
-    var html = '<nav class="admin-nav">';
+    var html = '<button type="button" class="admin-nav-toggle" aria-expanded="false"><i class="fas fa-bars"></i><span>منوی مدیر</span></button>';
+    html += '<button type="button" class="admin-nav-backdrop" aria-label="بستن منو"></button>';
+    html += '<nav class="admin-nav" aria-label="منوی مدیر">';
+    html += '<div class="admin-nav-title"><span>منوی مدیر</span><button type="button" class="admin-nav-close" aria-label="بستن"><i class="fas fa-times"></i></button></div>';
     ADMIN_NAV_ITEMS.forEach(function (item) {
-      if (item.sep) {
-        html += '<span class="admin-nav-sep" aria-hidden="true"></span>';
+      if (item.heading) {
+        html += '<div class="admin-nav-heading">' + item.heading + '</div>';
         return;
       }
       var active = item.match(page, tab) ? ' active' : '';
-      html += '<a href="' + item.href + '" class="' + active.trim() + '"><i class="fas ' + item.icon + '"></i>' + item.label + '</a>';
+      html += '<a href="' + item.href + '" class="' + active.trim() + '"><i class="fas ' + item.icon + '"></i><span>' + item.label + '</span></a>';
     });
     html += '</nav>';
     container.innerHTML = html;
 
-    var activeLink = container.querySelector('.admin-nav a.active');
-    if (activeLink && activeLink.scrollIntoView) {
-      activeLink.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+    function setOpen(open) {
+      container.classList.toggle('is-open', open);
+      document.body.classList.toggle('admin-nav-open', open);
+      var toggle = container.querySelector('.admin-nav-toggle');
+      if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
     }
+
+    container.querySelector('.admin-nav-toggle').addEventListener('click', function () {
+      setOpen(!container.classList.contains('is-open'));
+    });
+    container.querySelector('.admin-nav-backdrop').addEventListener('click', function () { setOpen(false); });
+    container.querySelector('.admin-nav-close').addEventListener('click', function () { setOpen(false); });
+    container.querySelector('.admin-nav').addEventListener('click', function (e) {
+      if (e.target.closest('a') && window.matchMedia('(max-width: 1099px)').matches) setOpen(false);
+    });
   }
 
   function initStatsCollapse(selector) {
@@ -545,7 +705,7 @@ window.GoodLoan = (function () {
   }
 
   function logout() {
-    ['gl_userId', 'gl_fullName', 'gl_roleId', 'gl_roleName', 'gl_userStatus'].forEach(function (key) {
+    ['gl_userId', 'gl_fullName', 'gl_roleId', 'gl_roleName', 'gl_userStatus', 'gl_nationalCode', 'gl_entry'].forEach(function (key) {
       localStorage.removeItem(key);
     });
     location.href = 'index.html';
@@ -826,6 +986,7 @@ window.GoodLoan = (function () {
     ready: ready,
 
     showMsg: showMsg,
+    confirmDialog: confirmDialog,
 
     money: money,
     formatNumber: formatNumber,
@@ -844,6 +1005,11 @@ window.GoodLoan = (function () {
     requireLogin: requireLogin,
     requireManager: requireManager,
     isManagerRole: isManagerRole,
+    isMultiRoleAccount: isMultiRoleAccount,
+    panelIsDonor: panelIsDonor,
+    applyEntry: applyEntry,
+    mountEntrySwitcher: mountEntrySwitcher,
+    normalizeNationalCode: normalizeNationalCode,
 
     post: post,
 

@@ -48,22 +48,17 @@ namespace Services
             var paid = installments.Where(a => a.InstallmentStatus == (byte)InstallmentStatus.Cleared).ToList();
             var remain = installments.Where(a => a.InstallmentStatus != (byte)InstallmentStatus.Cleared).ToList();
 
-            var waitingLoan = loans.FirstOrDefault(a => a.LoanRequestStatus == (byte)LoanRequestStatus.WaitingInQueue);
-            var myPosition = waitingLoan != null
-                ? await _repositoryManager.LoanRepository.GetQueuePositionAsync(waitingLoan.LoanId, cancellationToken)
-                : 0;
-
             var loanDtos = _mapper.Map<List<LoanDto>>(loans);
-            foreach (var dto in loanDtos.Where(d => d.LoanRequestStatus == (byte)LoanRequestStatus.WaitingInQueue))
-                dto.QueuePosition = await _repositoryManager.LoanRepository.GetQueuePositionAsync(dto.LoanId, cancellationToken);
+            foreach (var dto in loanDtos)
+                dto.QueuePosition = 0;
 
             return new MemberPanelDto
             {
                 User = _mapper.Map<UserDto>(user),
                 MaxLoanAmount = maxLoan,
-                FundBalance = await _repositoryManager.FundTransactionRepository.GetCurrentBalanceAsync(cancellationToken),
-                WaitingQueueCount = await _repositoryManager.LoanRepository.GetWaitingQueueCountAsync(cancellationToken),
-                MyQueuePosition = myPosition,
+                FundBalance = 0,
+                WaitingQueueCount = 0,
+                MyQueuePosition = 0,
                 TotalDebt = remain.Sum(a => a.InstallmentAmount),
                 PaidInstallmentsAmount = paid.Sum(a => a.InstallmentAmount),
                 RemainInstallmentsAmount = remain.Sum(a => a.InstallmentAmount),

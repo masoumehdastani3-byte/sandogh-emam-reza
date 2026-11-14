@@ -129,6 +129,31 @@ namespace Contracts.Models
         public int ManagerUserId { get; set; }
     }
 
+    /// <summary>ثبت وام‌گیرنده‌ای که پیش از راه‌اندازی سامانه وام گرفته است.</summary>
+    public class ImportPastLoanDto
+    {
+        public int ManagerUserId { get; set; }
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public string NationalCode { get; set; }
+        public string Mobile { get; set; }
+        /// <summary>مبلغ کل وام به تومان.</summary>
+        public long LoanAmountToman { get; set; }
+        public int InstallmentCount { get; set; }
+        public int PaidInstallmentCount { get; set; }
+        /// <summary>تاریخ شمسی سررسید اولین قسط پرداخت‌نشده. مثال: 1404/12/01</summary>
+        public string NextDueDateShamsi { get; set; }
+        public string Note { get; set; }
+    }
+
+    public class MoveQueueDto
+    {
+        public int LoanId { get; set; }
+        /// <summary>-1 یعنی یک نوبت جلوتر، +1 یعنی یک نوبت عقب‌تر.</summary>
+        public int Direction { get; set; }
+        public int ManagerUserId { get; set; }
+    }
+
     public class FundDepositDto
     {
         public int ManagerUserId { get; set; }

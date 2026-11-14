@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>پرداخت قسط | لبخند فردا</title>
-  <link rel="stylesheet" href="css/site.css" />
+  <link rel="stylesheet" href="css/site.css?v=20261114b" />
   <link rel="icon" href="images/labkhand-logo.png" />
   <style>
     .pay-summary {
@@ -25,23 +25,23 @@
       <a class="brand-lockup" href="index.html">
         <img src="images/labkhand-logo.png" alt="لوگو" />
         <div class="titles">
-          <span>پرداخت قسط بدون ورود</span>
+          <span>پرداخت قسط</span>
         </div>
       </a>
     </div>
 
     <div class="card">
       <h2><i class="fas fa-credit-card icon-green"></i>پرداخت قسط</h2>
-      <p class="muted-text" style="margin-top:0">این لینک از پیام بله آمده است و برای پرداخت همین قسط نیازی به ورود جداگانه نیست.</p>
+      <p class="muted-text" style="margin-top:0">دکمه را بزنید تا صفحه بانک باز شود. لازم نیست وارد سایت شوید.</p>
       <div id="msg" class="msg"></div>
       <div id="content" style="display:none">
         <div class="pay-summary" id="summary"></div>
-        <button type="button" class="btn primary block" id="btnPay"><i class="fas fa-university"></i>پرداخت آنلاین</button>
+        <button type="button" class="btn primary block" id="btnPay" style="min-height:56px;font-size:1.15rem"><i class="fas fa-university"></i>رفتن به صفحه بانک</button>
       </div>
-      <p style="margin-top:1rem"><a href="login.html"><i class="fas fa-sign-in-alt"></i>ورود به پنل</a></p>
+      <p class="muted-text" style="margin-top:1rem">بعد از پرداخت، نتیجه در بله می‌آید.</p>
     </div>
   </div>
-  <script src="js/app.js"></script>
+  <script src="js/app.js?v=20261114b"></script>
   <script>
     GoodLoan.ready(async function () {
       const G = GoodLoan;
@@ -58,14 +58,14 @@
       }
 
       const info = G.payload(result);
+      function toman(n) { return G.formatNumber(Math.round(Number(n || 0) / 10)) + ' تومان'; }
       G.$('content').style.display = 'block';
       G.$('summary').innerHTML =
-        '<div><span>عضو</span><b>' + (G.pick(info, 'memberName') || '') + '</b></div>' +
-        '<div><span>شناسه قسط</span><b>' + G.pick(info, 'installmentId') + '</b></div>' +
+        '<div><span>نام</span><b>' + (G.pick(info, 'memberName') || '') + '</b></div>' +
         '<div><span>سررسید</span><b>' + (G.pick(info, 'dueDate_Shamsi') || '-') + '</b></div>' +
-        '<div><span>مبلغ قسط</span><b>' + G.money(G.pick(info, 'installmentAmount')) + '</b></div>' +
-        '<div><span>کارمزد درگاه</span><b>' + G.money(G.pick(info, 'gatewayFeeAmount')) + '</b></div>' +
-        '<div class="total"><span>مبلغ قابل پرداخت</span><b>' + G.money(G.pick(info, 'payableAmount')) + '</b></div>';
+        '<div><span>مبلغ قسط</span><b>' + toman(G.pick(info, 'installmentAmount')) + '</b></div>' +
+        '<div><span>کارمزد بانک</span><b>' + toman(G.pick(info, 'gatewayFeeAmount')) + '</b></div>' +
+        '<div class="total"><span>مبلغی که می‌پردازید</span><b>' + toman(G.pick(info, 'payableAmount')) + '</b></div>';
 
       G.bindClick('btnPay', async function () {
         const btn = G.$('btnPay');

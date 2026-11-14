@@ -57,7 +57,7 @@ namespace Services
 
             try
             {
-                var client = _httpClientFactory.CreateClient();
+                var client = _httpClientFactory.CreateClient("NikooPayment");
                 using var request = new HttpRequestMessage(HttpMethod.Post, BaseUrl + "/api/payments/create");
                 request.Headers.TryAddWithoutValidation("X-App-Id", AppId);
                 request.Headers.TryAddWithoutValidation("X-Api-Key", ApiKey);
@@ -78,7 +78,8 @@ namespace Services
             }
             catch (Exception ex)
             {
-                return (false, null, null, "ارتباط با درگاه نیکو برقرار نشد: " + ex.Message);
+                var detail = DescribeException(ex);
+                return (false, null, null, "ارتباط با درگاه نیکو برقرار نشد: " + detail);
             }
         }
 
@@ -146,6 +147,18 @@ namespace Services
             for (var i = 0; i < a.Length; i++)
                 diff |= a[i] ^ b[i];
             return diff == 0;
+        }
+
+        private static string DescribeException(Exception ex)
+        {
+            if (ex == null)
+                return "";
+
+            var parts = new System.Collections.Generic.List<string>();
+            for (var cur = ex; cur != null && parts.Count < 5; cur = cur.InnerException)
+                parts.Add(cur.Message);
+
+            return string.Join(" → ", parts);
         }
     }
 }

@@ -9,6 +9,7 @@ namespace Services.Abstractions
         IPaymentService PaymentService { get; }
         IMemberPanelService MemberPanelService { get; }
         IBaleService BaleService { get; }
+        IBaleMenuService BaleMenuService { get; }
         IZarinPalService ZarinPalService { get; }
         INationalIdVerifyService NationalIdVerifyService { get; }
         INotificationSchedulerService NotificationSchedulerService { get; }

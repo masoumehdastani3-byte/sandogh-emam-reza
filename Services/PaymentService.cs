@@ -302,6 +302,7 @@ namespace Services
                 ? await _repositoryManager.UserRepository.GetByUserIdAsync(payment.UserId.Value, cancellationToken)
                 : null;
             await _baleService.NotifyManagersPaymentAsync(payment, payer, cancellationToken);
+            await NotifyPayerOnBaleAsync(payment, payer, cancellationToken);
 
             return ApiResultDto.Ok("پرداخت با موفقیت تایید شد", _mapper.Map<PaymentDto>(payment));
         }
@@ -357,6 +358,7 @@ namespace Services
                 ? await _repositoryManager.UserRepository.GetByUserIdAsync(payment.UserId.Value, cancellationToken)
                 : null;
             await _baleService.NotifyManagersPaymentAsync(payment, payer, cancellationToken);
+            await NotifyPayerOnBaleAsync(payment, payer, cancellationToken);
 
             return ApiResultDto.Ok("پرداخت با موفقیت تایید شد", _mapper.Map<PaymentDto>(payment));
         }
@@ -399,8 +401,46 @@ namespace Services
             await ApplySuccessfulPaymentAsync(payment, cancellationToken);
             await _repositoryManager.UnitOfWork.SaveChangesAsync(cancellationToken);
             await _baleService.NotifyManagersPaymentAsync(payment, user, cancellationToken);
+            await NotifyPayerOnBaleAsync(payment, user, cancellationToken);
 
             return ApiResultDto.Ok("پرداخت دستی ثبت شد", _mapper.Map<PaymentDto>(payment));
+        }
+
+        private async Task NotifyPayerOnBaleAsync(Payment payment, User payer, CancellationToken cancellationToken)
+        {
+            if (payer == null || string.IsNullOrWhiteSpace(payer.BaleChatId))
+                return;
+
+            string message;
+            if (payment.PaymentType == (byte)PaymentType.Installment)
+            {
+                long remain = 0;
+                if (payment.InstallmentId.HasValue)
+                {
+                    var installment = await _repositoryManager.InstallmentRepository.GetByInstallmentIdAsync(payment.InstallmentId.Value, cancellationToken);
+                    if (installment != null)
+                    {
+                        var loan = await _repositoryManager.LoanRepository.GetByLoanIdAsync(installment.LoanId, cancellationToken);
+                        remain = loan?.RemainAmount ?? 0;
+                    }
+                }
+
+                message = "قسط شما ثبت شد.\nمانده بدهی: " + MoneyText.Toman(remain);
+                message += remain <= 0
+                    ? "\nوام شما تمام شد."
+                    : "\nبرای قسط بعدی، دکمه «پرداخت قسط» را بزنید.";
+            }
+            else if (payment.PaymentType == (byte)PaymentType.Donation)
+            {
+                message = "کمک شما ثبت شد.\nممنون از همراهی شما.";
+            }
+            else
+            {
+                return;
+            }
+
+            var donator = payer.RoleId == (int)UserRoleType.Donator;
+            await _baleService.SendWithKeyboardAsync(payer.BaleChatId, message, BaleKeyboards.For(false, donator), cancellationToken);
         }
 
         private async Task ApplySuccessfulPaymentAsync(Payment payment, CancellationToken cancellationToken)

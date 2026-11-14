@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Services.Abstractions;
+using Services.Helpers;
 using System;
 using System.Linq;
 using System.Net.Http;
@@ -43,7 +44,10 @@ namespace Services
             return $"https://ble.ir/{username}?start=u{userId}";
         }
 
-        public async Task<bool> SendMessageAsync(string chatId, string message, CancellationToken cancellationToken = default)
+        public Task<bool> SendMessageAsync(string chatId, string message, CancellationToken cancellationToken = default)
+            => SendWithKeyboardAsync(chatId, message, null, cancellationToken);
+
+        public async Task<bool> SendWithKeyboardAsync(string chatId, string message, object replyMarkup, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(chatId) || string.IsNullOrWhiteSpace(message))
                 return false;
@@ -54,11 +58,75 @@ namespace Services
                 return false;
             }
 
+            var sent = await PostSendAsync(chatId, message, replyMarkup, cancellationToken);
+            if (!sent && replyMarkup != null)
+                sent = await PostSendAsync(chatId, message, null, cancellationToken);
+            return sent;
+        }
+
+        public async Task AnswerCallbackAsync(string callbackQueryId, string text, CancellationToken cancellationToken = default)
+        {
+            if (!IsTokenConfigured || string.IsNullOrWhiteSpace(callbackQueryId))
+                return;
+
+            try
+            {
+                var client = _httpClientFactory.CreateClient();
+                var url = $"{ApiBase}/bot{Token}/answerCallbackQuery";
+                var payload = new { callback_query_id = callbackQueryId, text = text ?? "" };
+                var content = new StringContent(JsonConvert.SerializeObject(payload), Encoding.UTF8, "application/json");
+                await client.PostAsync(url, content, cancellationToken);
+            }
+            catch
+            {
+                // جواب ندادن به دکمه نباید بقیه کار را متوقف کند
+            }
+        }
+
+        public async Task<(bool Ok, string Error, JArray Updates)> FetchUpdatesAsync(CancellationToken cancellationToken = default)
+        {
+            if (!IsTokenConfigured)
+                return (false, "توکن ربات بله تنظیم نشده است", null);
+
+            try
+            {
+                var client = _httpClientFactory.CreateClient();
+                var url = $"{ApiBase}/bot{Token}/getUpdates?timeout=25&offset={_lastUpdateId + 1}";
+                var response = await client.GetAsync(url, cancellationToken);
+                var body = await response.Content.ReadAsStringAsync();
+                if (!response.IsSuccessStatusCode)
+                    return (false, body, null);
+
+                var root = JObject.Parse(body);
+                if (root["ok"]?.Value<bool>() != true)
+                    return (false, body, null);
+
+                var updates = root["result"] as JArray ?? new JArray();
+                foreach (var update in updates)
+                {
+                    var updateId = update["update_id"]?.Value<long>() ?? 0;
+                    if (updateId > _lastUpdateId)
+                        _lastUpdateId = updateId;
+                }
+
+                return (true, null, updates);
+            }
+            catch (Exception ex)
+            {
+                return (false, ex.Message, null);
+            }
+        }
+
+        private async Task<bool> PostSendAsync(string chatId, string message, object replyMarkup, CancellationToken cancellationToken)
+        {
             try
             {
                 var client = _httpClientFactory.CreateClient();
                 var url = $"{ApiBase}/bot{Token}/sendMessage";
-                var payload = new { chat_id = long.TryParse(chatId, out var id) ? (object)id : chatId, text = message };
+                var chat = long.TryParse(chatId, out var id) ? (object)id : chatId;
+                object payload = replyMarkup == null
+                    ? new { chat_id = chat, text = message }
+                    : new { chat_id = chat, text = message, reply_markup = replyMarkup };
                 var content = new StringContent(JsonConvert.SerializeObject(payload), Encoding.UTF8, "application/json");
                 var response = await client.PostAsync(url, content, cancellationToken);
                 return response.IsSuccessStatusCode;
@@ -101,29 +169,30 @@ namespace Services
         public async Task<NotificationLog> NotifyInstallmentReminderAsync(User user, Installment installment, string paymentLink, bool isOverdue = false, CancellationToken cancellationToken = default)
         {
             var header = isOverdue
-                ? "یادآوری پرداخت قسط عقب\u200cافتاده"
-                : "یادآوری پرداخت قسط (۳ روز مانده به سررسید)";
+                ? "قسط شما عقب افتاده است."
+                : "زمان قسط شما نزدیک است.";
             var msg = $"{header}\n" +
-                      $"مبلغ: {installment.InstallmentAmount:N0} ریال\n" +
+                      $"مبلغ: {MoneyText.Toman(installment.InstallmentAmount)}\n" +
                       $"سررسید: {installment.InstallmentDate_shansi}\n\n" +
-                      $"بدون نیاز به ورود، برای پرداخت آنلاین همین قسط روی لینک زیر بزنید:\n{paymentLink}";
+                      "دکمه زیر را بزنید. صفحه بانک باز می‌شود و لازم نیست وارد سایت شوید.\n" +
+                      paymentLink;
 
             if (string.IsNullOrWhiteSpace(user?.BaleChatId))
                 return await LogAsync(user?.UserId, NotificationType.InstallmentReminder, NotificationStatus.Failed, msg, "کاربر به بله متصل نیست", relatedEntity: "Installment", relatedId: installment.InstallmentId);
 
-            var ok = await SendMessageAsync(user.BaleChatId, msg, cancellationToken);
+            var ok = await SendWithKeyboardAsync(user.BaleChatId, msg, BaleKeyboards.InlineUrl("پرداخت این قسط", paymentLink), cancellationToken);
             return await LogAsync(user.UserId, NotificationType.InstallmentReminder, ok ? NotificationStatus.Sent : NotificationStatus.Failed, msg, ok ? null : "ارسال پیام بله ناموفق بود", relatedEntity: "Installment", relatedId: installment.InstallmentId);
         }
 
         public async Task<NotificationLog> NotifyDonationLinkAsync(User user, string paymentLink, CancellationToken cancellationToken = default)
         {
             var amount = user.MonthlyDonationAmount ?? 0;
-            var msg = $"لینک پرداخت ماهانه کمک خیرین\nمبلغ: {amount:N0} ریال\nلینک: {paymentLink}";
+            var msg = $"کمک ماهانه\nمبلغ: {MoneyText.Toman(amount)}\nدکمه زیر را بزنید.\n{paymentLink}";
 
             if (string.IsNullOrWhiteSpace(user?.BaleChatId))
                 return await LogAsync(user?.UserId, NotificationType.DonationLink, NotificationStatus.Failed, msg, "کاربر به بله متصل نیست");
 
-            var ok = await SendMessageAsync(user.BaleChatId, msg, cancellationToken);
+            var ok = await SendWithKeyboardAsync(user.BaleChatId, msg, BaleKeyboards.InlineUrl("پرداخت کمک", paymentLink), cancellationToken);
             return await LogAsync(user.UserId, NotificationType.DonationLink, ok ? NotificationStatus.Sent : NotificationStatus.Failed, msg, ok ? null : "ارسال پیام بله ناموفق بود");
         }
 
@@ -160,43 +229,21 @@ namespace Services
 
         public async Task<ApiResultDto> PollAndBindChatIdsAsync(CancellationToken cancellationToken = default)
         {
-            if (!IsTokenConfigured)
-                return ApiResultDto.Fail("توکن ربات بله تنظیم نشده است");
+            var fetched = await FetchUpdatesAsync(cancellationToken);
+            if (!fetched.Ok)
+                return ApiResultDto.Fail(fetched.Error);
 
-            try
+            if (fetched.Updates == null || fetched.Updates.Count == 0)
+                return ApiResultDto.Ok("آپدیت جدیدی نبود", new { bound = 0 });
+
+            var bound = 0;
+            foreach (var update in fetched.Updates)
             {
-                var client = _httpClientFactory.CreateClient();
-                var url = $"{ApiBase}/bot{Token}/getUpdates?timeout=25&offset={_lastUpdateId + 1}";
-                var response = await client.GetAsync(url, cancellationToken);
-                var body = await response.Content.ReadAsStringAsync();
-                if (!response.IsSuccessStatusCode)
-                    return ApiResultDto.Fail(body);
-
-                var root = JObject.Parse(body);
-                if (root["ok"]?.Value<bool>() != true)
-                    return ApiResultDto.Fail(body);
-
-                var updates = root["result"] as JArray;
-                if (updates == null || updates.Count == 0)
-                    return ApiResultDto.Ok("آپدیت جدیدی نبود", new { bound = 0 });
-
-                var bound = 0;
-                foreach (var update in updates)
-                {
-                    var updateId = update["update_id"]?.Value<long>() ?? 0;
-                    if (updateId > _lastUpdateId)
-                        _lastUpdateId = updateId;
-
-                    if (await TryBindFromUpdateAsync(update, cancellationToken))
-                        bound++;
-                }
-
-                return ApiResultDto.Ok($"تعداد {bound} چت‌آیدی ذخیره شد", new { bound, lastUpdateId = _lastUpdateId });
+                if (await TryBindFromUpdateAsync(update, cancellationToken))
+                    bound++;
             }
-            catch (Exception ex)
-            {
-                return ApiResultDto.Fail(ex.Message);
-            }
+
+            return ApiResultDto.Ok($"تعداد {bound} چت‌آیدی ذخیره شد", new { bound, lastUpdateId = _lastUpdateId });
         }
 
         public async Task<ApiResultDto> ProcessIncomingUpdateJsonAsync(string json, CancellationToken cancellationToken = default)
@@ -234,7 +281,7 @@ namespace Services
             }
         }
 
-        private async Task<bool> TryBindFromUpdateAsync(JToken update, CancellationToken cancellationToken)
+        public async Task<bool> TryBindFromUpdateAsync(JToken update, CancellationToken cancellationToken)
         {
             var message = update["message"] ?? update["edited_message"];
             if (message == null)
@@ -269,14 +316,6 @@ namespace Services
                 var user = await _repositoryManager.UserRepository.GetByMobileAsync(mobileMatch.Groups[1].Value, cancellationToken);
                 if (user != null)
                     return await BindUserAsync(user, chatId, cancellationToken);
-            }
-
-            // 4) اگر فقط /start بدون پارامتر بود
-            if (Regex.IsMatch(text, @"^/start", RegexOptions.IgnoreCase))
-            {
-                await SendMessageAsync(chatId,
-                    "سلام\nبرای اتصال حساب، یکی از این‌ها را بفرستید:\n• لینک عضویت سایت را باز کنید و Start بزنید\n• یا کد ملی خود را ارسال کنید\n• یا شماره موبایل ثبت‌شده را ارسال کنید",
-                    cancellationToken);
             }
 
             return false;

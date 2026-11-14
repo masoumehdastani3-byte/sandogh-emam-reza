@@ -28,6 +28,8 @@ namespace Services.Abstractions
         Task<ApiResultDto> RequestLoanAsync(LoanRequestDto dto, CancellationToken cancellationToken = default);
         Task<ApiResultDto> DisburseLoanAsync(DisburseLoanDto dto, CancellationToken cancellationToken = default);
         Task<ApiResultDto> RejectLoanAsync(int loanId, string reason, int managerUserId, CancellationToken cancellationToken = default);
+        Task<ApiResultDto> MoveInQueueAsync(int loanId, int direction, int managerUserId, CancellationToken cancellationToken = default);
+        Task<ApiResultDto> ImportPastLoanAsync(ImportPastLoanDto dto, CancellationToken cancellationToken = default);
         Task<List<LoanDto>> GetQueueAsync(CancellationToken cancellationToken = default);
         Task<List<LoanDto>> GetAllAsync(CancellationToken cancellationToken = default);
         Task<List<LoanDto>> GetByUserIdAsync(int userId, CancellationToken cancellationToken = default);

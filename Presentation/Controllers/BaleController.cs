@@ -21,7 +21,7 @@ namespace Presentation.Controllers
         {
             using var reader = new StreamReader(Request.Body);
             var json = await reader.ReadToEndAsync();
-            var result = await _serviceManager.BaleService.ProcessIncomingUpdateJsonAsync(json, cancellationToken);
+            var result = await _serviceManager.BaleMenuService.ProcessIncomingUpdateJsonAsync(json, cancellationToken);
             return Ok(result);
         }
 
@@ -29,7 +29,7 @@ namespace Presentation.Controllers
         [HttpPost("poll")]
         public async Task<IActionResult> Poll(CancellationToken cancellationToken)
         {
-            var result = await _serviceManager.BaleService.PollAndBindChatIdsAsync(cancellationToken);
+            var result = await _serviceManager.BaleMenuService.PollAsync(cancellationToken);
             return result.Success ? Ok(result) : BadRequest(result);
         }
 

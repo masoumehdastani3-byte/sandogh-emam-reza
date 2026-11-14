@@ -10,7 +10,7 @@
 
   <title>پنل مدیران | لبخند فردا</title>
 
-  <link rel="stylesheet" href="css/site.css" />
+  <link rel="stylesheet" href="css/site.css?v=20261114b" />
 
   <link rel="icon" href="images/labkhand-logo.png" />
 
@@ -73,6 +73,9 @@
       background: rgba(125, 185, 0, 0.25);
     }
 
+    .queue-actions { display: flex; flex-wrap: wrap; gap: .35rem; }
+    .queue-actions .btn { min-height: 44px; font-size: 1rem; }
+
   </style>
 
 </head>
@@ -124,6 +127,8 @@
 
     <div id="adminContent" style="display:none">
 
+      <div id="entrySwitch" class="card entry-switch" style="display:none"></div>
+
       <div class="card">
 
         <details class="stats-collapse" id="adminStatsCollapse">
@@ -142,7 +147,7 @@
 
         <h2><i class="fas fa-cogs icon-green"></i>مدیریت صندوق</h2>
 
-        <p class="muted-text" style="margin-top:0">از اینجا می‌توانید یادآوری روزانه اقساط را برای اعضا بفرستید یا صف وام را پردازش کنید.</p>
+        <p class="muted-text" style="margin-top:0">یادآور قسط را در بله بفرستید، یا اگر پول صندوق کافی است نفرهای اول صف را یکجا وام بدهید. جابه‌جایی نوبت در بخش «صف وام» است.</p>
 
         <div class="actions" style="margin-top:1rem">
 
@@ -238,7 +243,9 @@
 
       <div class="card tab-panel" id="tab-queue">
 
-        <h2><i class="fas fa-stream icon-green"></i>صف انتظار وام</h2>
+        <h2><i class="fas fa-stream icon-green"></i>صف وام</h2>
+        <p class="muted-text" style="margin-top:0">نفر بالاتر زودتر وام می‌گیرد. اگر صلاح می‌دانید با «جلوتر» و «عقب‌تر» نوبت را عوض کنید. تعداد صف را فقط شما می‌بینید.</p>
+        <div id="queueMsg" class="msg"></div>
 
         <div style="overflow:auto"><table><thead><tr><th>نوبت</th><th>وام</th><th>عضو</th><th>مبلغ</th><th>تاریخ درخواست</th><th>عملیات</th></tr></thead><tbody id="queueBody"></tbody></table></div>
 
@@ -246,9 +253,36 @@
 
 
 
+      <div class="card tab-panel" id="tab-past-loan">
+        <h2><i class="fas fa-history icon-green"></i>ثبت وام قبلی</h2>
+        <p class="muted-text" style="margin-top:0">برای کسی که پیش از این سامانه وام گرفته است. موجودی امروز صندوق عوض نمی‌شود. قسط‌های مانده را بعداً همین‌جا یا از بله می‌پردازد.</p>
+        <div class="row">
+          <div><label>نام</label><input id="pastFirstName" /></div>
+          <div><label>نام خانوادگی</label><input id="pastLastName" /></div>
+        </div>
+        <div class="row">
+          <div><label>کد ملی</label><input id="pastNational" inputmode="numeric" maxlength="10" placeholder="۱۰ رقم" /></div>
+          <div><label>موبایل</label><input id="pastMobile" inputmode="numeric" maxlength="11" placeholder="0912..." /></div>
+        </div>
+        <div class="row">
+          <div><label>مبلغ کل وام (تومان)</label><input id="pastAmount" type="text" class="amount-input" inputmode="numeric" placeholder="مثال: 5000000" /></div>
+          <div><label>تعداد کل قسط</label><input id="pastCount" type="number" min="1" max="60" value="10" /></div>
+        </div>
+        <div class="row">
+          <div><label>چند قسط را قبلاً داده است؟</label><input id="pastPaid" type="number" min="0" value="0" /></div>
+          <div><label>تاریخ قسط بعدی (شمسی)</label><input id="pastDue" placeholder="1404/12/01" /></div>
+        </div>
+        <label>یادداشت (اختیاری)</label>
+        <input id="pastNote" placeholder="مثلاً وام سال ۱۴۰۲" />
+        <p class="muted-text" id="pastPreview" style="margin-top:.8rem">مبلغ و تعداد قسط را بنویسید تا مانده حساب شود.</p>
+        <button type="button" class="btn primary block" id="btnPastLoan"><i class="fas fa-save"></i>ثبت این وام قبلی</button>
+        <div id="pastMsg" class="msg"></div>
+      </div>
+
       <div class="card tab-panel" id="tab-loans">
 
         <h2><i class="fas fa-file-invoice icon-green"></i>همه وام‌ها</h2>
+        <div id="loansMsg" class="msg"></div>
 
         <p>درخواست‌های در انتظار تایید را از وام‌های تایید و پرداخت‌شده جدا ببینید.</p>
 
@@ -338,7 +372,7 @@
 
   </div>
 
-  <script src="js/app.js"></script>
+  <script src="js/app.js?v=20261114b"></script>
 
   <script>
 
@@ -360,9 +394,11 @@
 
       G.$('adminContent').style.display = 'block';
 
+      G.mountEntrySwitcher(G.$('entrySwitch'));
+
       G.renderAdminNav('adminNavBar', { page: 'admin' });
 
-      G.initTabs('tab-manage');
+      G.initTabs('tab-queue');
 
       G.initStatsCollapse('#adminStatsCollapse');
 
@@ -618,8 +654,8 @@
           const status = loanRequestStatus(l);
           const isPending = status === 1;
           const actions = isPending
-            ? '<button type="button" class="btn primary btn-disburse btn-compact-table" data-id="' + G.pick(l, 'loanId') + '">تایید و پرداخت</button> ' +
-              '<button type="button" class="btn dark btn-reject btn-compact-table" data-id="' + G.pick(l, 'loanId') + '">رد</button>'
+            ? '<button type="button" class="btn primary btn-disburse btn-compact-table" data-id="' + G.pick(l, 'loanId') + '">وام را بده</button> ' +
+              '<button type="button" class="btn dark btn-reject btn-compact-table" data-id="' + G.pick(l, 'loanId') + '">رد کن</button>'
             : '<span class="muted-text">—</span>';
           return '<tr><td>' + G.pick(l, 'loanId') + '</td><td>' + (G.pick(u, 'fullName') || G.pick(l, 'userId') || '') + '</td><td class="amount">' +
             G.money(G.pick(l, 'loanAmount')) + '</td><td>' + G.shamsiDate(l, 'requestDate_Shamsi', 'requestDate') + '</td><td>' +
@@ -637,7 +673,7 @@
 
         G.$('queueBody').innerHTML = queue.length ? queue.map(function (l) {
 
-          return G.renderLoanTableRow(l, { showQueue: true, showMember: true, showActions: true });
+          return G.renderLoanTableRow(l, { showQueue: true, showMember: true, showActions: true, showMove: true });
 
         }).join('') : '<tr><td colspan="6">صف خالی است</td></tr>';
 
@@ -720,6 +756,22 @@
 
       document.addEventListener('click', async function (e) {
 
+        const moveBtn = e.target.closest('.btn-queue-move');
+        if (moveBtn) {
+          const loanId = Number(moveBtn.getAttribute('data-id'));
+          const direction = Number(moveBtn.getAttribute('data-dir'));
+          moveBtn.disabled = true;
+          const { data } = await G.post('/api/loan/move', {
+            loanId: loanId,
+            direction: direction,
+            managerUserId: managerId
+          });
+          moveBtn.disabled = false;
+          G.showMsg(G.$('queueMsg'), data.message || 'انجام شد', data.success);
+          if (data.success) load();
+          return;
+        }
+
         const disburseBtn = e.target.closest('.btn-disburse');
 
         if (disburseBtn) {
@@ -736,7 +788,7 @@
 
           });
 
-          G.showMsg(G.$('manageMsg'), data.message || 'خطا', data.success);
+          G.showMsg(disburseBtn.closest('#tab-queue') ? G.$('queueMsg') : G.$('loansMsg'), data.message || 'خطا', data.success);
 
           load();
 
@@ -752,9 +804,15 @@
 
           const loanId = Number(rejectBtn.getAttribute('data-id'));
 
-          const reason = prompt('دلیل رد درخواست وام را وارد کنید:');
+          const reason = await G.confirmDialog({
+            title: 'رد درخواست',
+            text: 'دلیل برای متقاضی در بله فرستاده می‌شود.',
+            input: { label: 'دلیل', placeholder: 'مثلاً مدارک کامل نیست', required: true },
+            confirmText: 'رد کردن',
+            cancelText: 'انصراف'
+          });
 
-          if (reason === null) return;
+          if (reason == null || reason === false) return;
 
           const { data } = await G.post('/api/loan/reject', {
 
@@ -766,7 +824,7 @@
 
           });
 
-          G.showMsg(G.$('manageMsg'), data.message || 'خطا', data.success);
+          G.showMsg(rejectBtn.closest('#tab-queue') ? G.$('queueMsg') : G.$('loansMsg'), data.message || 'خطا', data.success);
 
           load();
 
@@ -779,10 +837,15 @@
           const userId = Number(toggleBtn.getAttribute('data-id'));
           const currentlyActive = toggleBtn.getAttribute('data-active') === '1';
           const nextActive = !currentlyActive;
-          const confirmText = nextActive
-            ? 'این عضو فعال شود؟'
-            : 'این عضو غیرفعال شود؟ (دیگر نمی‌تواند وارد سایت شود)';
-          if (!window.confirm(confirmText)) return;
+          const ok = await G.confirmDialog({
+            title: nextActive ? 'فعال کردن عضو' : 'غیرفعال کردن عضو',
+            text: nextActive
+              ? 'این عضو دوباره می‌تواند وارد شود.'
+              : 'این عضو دیگر نمی‌تواند وارد سایت شود.',
+            confirmText: nextActive ? 'فعال شود' : 'غیرفعال شود',
+            cancelText: 'انصراف'
+          });
+          if (!ok) return;
 
           toggleBtn.disabled = true;
           const { data } = await G.put('/api/admin/members', {
@@ -802,8 +865,14 @@
           const userId = Number(noteBtn.getAttribute('data-id'));
           const member = membersCache.find(function (u) { return Number(G.pick(u, 'userId')) === userId; });
           const current = member ? (G.pick(member, 'description') || '') : '';
-          const note = prompt('توضیحات مدیریتی برای این عضو:', current);
-          if (note === null) return;
+          const note = await G.confirmDialog({
+            title: 'توضیح عضو',
+            text: 'این توضیح فقط برای مسئول صندوق است.',
+            input: { label: 'توضیح', value: current, placeholder: 'توضیح کوتاه' },
+            confirmText: 'ذخیره',
+            cancelText: 'انصراف'
+          });
+          if (note == null || note === false) return;
 
           noteBtn.disabled = true;
           const { data } = await G.put('/api/admin/members', {
@@ -859,6 +928,78 @@
       });
 
 
+
+      function updatePastPreview() {
+        var tomanAmount = G.getAmountValue('pastAmount');
+        var count = Number(G.$('pastCount').value) || 0;
+        var paid = Number(G.$('pastPaid').value) || 0;
+        var box = G.$('pastPreview');
+        if (!tomanAmount || count < 1) {
+          box.textContent = 'مبلغ و تعداد قسط را بنویسید تا مانده حساب شود.';
+          return;
+        }
+        if (paid < 0 || paid > count) {
+          box.textContent = 'تعداد قسط پرداخت‌شده نمی‌تواند از کل قسط‌ها بیشتر باشد.';
+          return;
+        }
+        var each = Math.floor(tomanAmount / count);
+        var remainCount = count - paid;
+        var remain = each * remainCount;
+        box.textContent = 'هر قسط حدود ' + G.formatNumber(each) + ' تومان. پرداخت‌شده: ' + paid + ' قسط. مانده: ' + G.formatNumber(remain) + ' تومان.';
+      }
+
+      ['pastAmount', 'pastCount', 'pastPaid'].forEach(function (id) {
+        var el = G.$(id);
+        if (el) el.addEventListener('input', updatePastPreview);
+      });
+
+      G.bindClick('btnPastLoan', async function () {
+        var tomanAmount = G.getAmountValue('pastAmount');
+        var count = Number(G.$('pastCount').value) || 0;
+        var paid = Number(G.$('pastPaid').value) || 0;
+        var name = (G.$('pastFirstName').value + ' ' + G.$('pastLastName').value).trim();
+        var ok = await G.confirmDialog({
+          title: 'ثبت وام قبلی',
+          text: 'این وام در صف نمی‌رود و از موجودی امروز صندوق کم نمی‌شود.',
+          rows: [
+            { label: 'نام', value: name || '—' },
+            { label: 'مبلغ', value: G.formatNumber(tomanAmount) + ' تومان', strong: true },
+            { label: 'قسط پرداخت‌شده', value: paid + ' از ' + count }
+          ],
+          confirmText: 'ثبت شود',
+          cancelText: 'انصراف'
+        });
+        if (!ok) return;
+
+        var btn = G.$('btnPastLoan');
+        btn.disabled = true;
+        const { data } = await G.post('/api/loan/import-past', {
+          managerUserId: managerId,
+          firstName: G.$('pastFirstName').value.trim(),
+          lastName: G.$('pastLastName').value.trim(),
+          nationalCode: G.$('pastNational').value.trim(),
+          mobile: G.$('pastMobile').value.trim(),
+          loanAmountToman: tomanAmount,
+          installmentCount: count,
+          paidInstallmentCount: paid,
+          nextDueDateShamsi: G.$('pastDue').value.trim(),
+          note: G.$('pastNote').value.trim()
+        });
+        btn.disabled = false;
+        G.showMsg(G.$('pastMsg'), data.message || 'ثبت نشد', data.success);
+        if (data.success) {
+          G.$('pastFirstName').value = '';
+          G.$('pastLastName').value = '';
+          G.$('pastNational').value = '';
+          G.$('pastMobile').value = '';
+          G.$('pastAmount').value = '';
+          G.$('pastPaid').value = '0';
+          G.$('pastDue').value = '';
+          G.$('pastNote').value = '';
+          updatePastPreview();
+          load();
+        }
+      });
 
       G.bindClick('btnDeposit', async function () {
 

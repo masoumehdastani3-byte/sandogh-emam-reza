@@ -17,11 +17,13 @@ namespace Services
     {
         private readonly IRepositoryManager _repositoryManager;
         private readonly IMapper _mapper;
+        private readonly IBaleService _baleService;
 
-        public AdminService(IRepositoryManager repositoryManager, IMapper mapper)
+        public AdminService(IRepositoryManager repositoryManager, IMapper mapper, IBaleService baleService)
         {
             _repositoryManager = repositoryManager;
             _mapper = mapper;
+            _baleService = baleService;
         }
 
         public async Task<bool> IsManagerAsync(int userId, CancellationToken cancellationToken = default)
@@ -248,6 +250,116 @@ namespace Services
             foreach (var dto in dtos)
                 dto.Password = null;
             return dtos;
+        }
+
+        public async Task<ApiResultDto> CreateMemberAsync(AdminCreateMemberDto dto, CancellationToken cancellationToken = default)
+        {
+            if (dto == null)
+                return ApiResultDto.Fail("اطلاعات عضو نامعتبر است");
+
+            if (!await IsManagerAsync(dto.ManagerUserId, cancellationToken))
+                return ApiResultDto.Fail("فقط مدیر صندوق مجاز است");
+
+            var firstName = dto.FirstName?.Trim() ?? "";
+            var lastName = dto.LastName?.Trim() ?? "";
+            if (string.IsNullOrWhiteSpace(firstName) || string.IsNullOrWhiteSpace(lastName))
+                return ApiResultDto.Fail("نام و نام خانوادگی را بنویسید");
+            if (firstName.Length > 50 || lastName.Length > 50)
+                return ApiResultDto.Fail("نام یا نام خانوادگی بلندتر از حد مجاز است");
+
+            var nationalCode = PersianDateHelper.ToEnglishDigits(dto.NationalCode ?? "").Trim();
+            var mobile = PersianDateHelper.ToEnglishDigits(dto.Mobile ?? "").Trim();
+            if (!PersianDateHelper.IsValidNationalCode(nationalCode))
+                return ApiResultDto.Fail("کد ملی نامعتبر است");
+            if (!PersianDateHelper.IsValidMobile(mobile))
+                return ApiResultDto.Fail("شماره موبایل نامعتبر است. مثال: 09121234567");
+
+            var existingNational = await _repositoryManager.UserRepository.GetByNationalCodeAsync(nationalCode, cancellationToken);
+            if (existingNational != null)
+                return ApiResultDto.Fail("این کد ملی قبلاً ثبت شده است");
+
+            var existingMobile = await _repositoryManager.UserRepository.GetByMobileAsync(mobile, cancellationToken);
+            if (existingMobile != null)
+                return ApiResultDto.Fail("این شماره موبایل قبلاً ثبت شده است");
+
+            var roleType = (UserRoleType)dto.RoleType;
+            string roleName;
+            byte userStatus;
+            if (roleType == UserRoleType.Manager)
+            {
+                roleName = "مدیر صندوق";
+                userStatus = (byte)UserStatus.Manager;
+            }
+            else if (roleType == UserRoleType.Donator)
+            {
+                if (dto.MonthlyDonationAmount == null || dto.MonthlyDonationAmount <= 0)
+                    return ApiResultDto.Fail("مبلغ کمک ماهانه برای خیرین الزامی است");
+                roleName = "خیر";
+                userStatus = (byte)UserStatus.Donator;
+            }
+            else if (roleType == UserRoleType.Member)
+            {
+                roleName = "عضو / وام‌گیرنده";
+                userStatus = (byte)UserStatus.LoanApplicant;
+            }
+            else
+                return ApiResultDto.Fail("نوع حساب نامعتبر است");
+
+            var roles = (await _repositoryManager.UserRoleRepository.GetAllAsync(cancellationToken)).ToList();
+            var role = roles.FirstOrDefault(r => r.RoleName == roleName)
+                ?? roles.FirstOrDefault(r => r.RoleId == (int)roleType);
+            if (role == null)
+                return ApiResultDto.Fail("نقش کاربری در سیستم تعریف نشده است. یک‌بار برنامه را اجرا کنید تا نقش‌ها ساخته شوند.");
+
+            var password = PersianDateHelper.GeneratePassword();
+            var note = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description.Trim();
+            if (note != null && note.Length > 500)
+                note = note.Substring(0, 500);
+
+            var user = new User
+            {
+                NationalCode = nationalCode,
+                Mobile = mobile,
+                FirstName = firstName,
+                LastName = lastName,
+                FullName = (firstName + " " + lastName).Trim(),
+                UserName = nationalCode,
+                Password = password,
+                RoleId = role.RoleId,
+                UserStatus = userStatus,
+                UserActiveType = (byte)UserActiveType.Active,
+                UserStatusLife = (byte)UserStatusLife.living,
+                UserGender = (byte)UserGender.Man,
+                HasBaleApp = true,
+                MonthlyDonationAmount = roleType == UserRoleType.Donator ? dto.MonthlyDonationAmount : null,
+                Description = note,
+                CreateUserId = dto.ManagerUserId,
+                CreateDate = DateTime.Now,
+                Active = true
+            };
+
+            _repositoryManager.UserRepository.Insert(user);
+            var save = await _repositoryManager.UnitOfWork.SaveChangesAsync(cancellationToken);
+            if (save <= 0)
+                return ApiResultDto.Fail("ثبت عضو با مشکل مواجه شد");
+
+            var botLink = _baleService.GetBotStartLink(user.UserId);
+            var message = roleType == UserRoleType.Manager
+                ? "مدیر صندوق ثبت شد. با کد ملی و این رمز وارد پنل مدیران می‌شود و همان دسترسی شما را دارد."
+                : "عضو ثبت شد. رمز ورود را به او بدهید. با استارت ربات بله، پیام‌های صندوق برایش می‌رود.";
+            return ApiResultDto.Ok(
+                message,
+                new
+                {
+                    user.UserId,
+                    user.NationalCode,
+                    user.FullName,
+                    user.Mobile,
+                    user.RoleId,
+                    roleName = role.RoleName,
+                    password,
+                    botLink
+                });
         }
 
         public async Task<ApiResultDto> UpdateMemberAsync(AdminUpdateMemberDto dto, CancellationToken cancellationToken = default)

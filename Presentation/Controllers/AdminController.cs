@@ -114,6 +114,13 @@ namespace Presentation.Controllers
             return Ok(await _serviceManager.AdminService.GetMembersAsync(cancellationToken));
         }
 
+        [HttpPost("members")]
+        public async Task<IActionResult> CreateMember([FromBody] AdminCreateMemberDto dto, CancellationToken cancellationToken)
+        {
+            var result = await _serviceManager.AdminService.CreateMemberAsync(dto, cancellationToken);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
         [HttpPut("members")]
         public async Task<IActionResult> UpdateMember([FromBody] AdminUpdateMemberDto dto, CancellationToken cancellationToken)
         {

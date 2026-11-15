@@ -91,6 +91,7 @@ namespace Services.Abstractions
         Task<List<SettingDto>> GetSettingsAsync(CancellationToken cancellationToken = default);
         Task<ApiResultDto> UpdateSettingAsync(UpdateSettingDto dto, CancellationToken cancellationToken = default);
         Task<List<UserDto>> GetMembersAsync(CancellationToken cancellationToken = default);
+        Task<ApiResultDto> CreateMemberAsync(AdminCreateMemberDto dto, CancellationToken cancellationToken = default);
         Task<ApiResultDto> UpdateMemberAsync(AdminUpdateMemberDto dto, CancellationToken cancellationToken = default);
     }
 

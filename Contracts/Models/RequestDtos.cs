@@ -242,6 +242,20 @@ namespace Contracts.Models
         public bool UpdateDescription { get; set; }
     }
 
+    /// <summary>تعریف عضو جدید از داخل پنل مدیر صندوق.</summary>
+    public class AdminCreateMemberDto
+    {
+        public int ManagerUserId { get; set; }
+        public string NationalCode { get; set; }
+        public string Mobile { get; set; }
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        /// <summary>۱ مدیر صندوق، ۲ عضو / وام‌گیرنده، ۳ خیر.</summary>
+        public byte RoleType { get; set; }
+        public long? MonthlyDonationAmount { get; set; }
+        public string Description { get; set; }
+    }
+
     public class SaveRoleDto
     {
         public int ManagerUserId { get; set; }

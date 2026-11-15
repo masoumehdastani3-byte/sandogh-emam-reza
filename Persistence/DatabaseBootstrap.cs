@@ -314,6 +314,27 @@ END
                 await db.SaveChangesAsync();
             }
 
+            // مهاجرت changeUserMenu روی این پایگاه اعمال نشده و کلید خارجی هنوز به جدول قدیمی UserMenu وصل است.
+            // مدل برنامه شناسهٔ UserSubMenu را در UserMenuId ذخیره می‌کند.
+            await db.Database.ExecuteSqlRawAsync(@"
+IF OBJECT_ID(N'[dbo].[UserSubMenu]', N'U') IS NOT NULL
+   AND OBJECT_ID(N'[dbo].[UserRoleMenuAccess]', N'U') IS NOT NULL
+   AND EXISTS (
+        SELECT 1
+        FROM sys.foreign_keys fk
+        WHERE fk.name = N'FK_UserRoleMenuAccess_UserMenu'
+          AND fk.parent_object_id = OBJECT_ID(N'[dbo].[UserRoleMenuAccess]')
+          AND fk.referenced_object_id = OBJECT_ID(N'[dbo].[UserMenu]')
+   )
+BEGIN
+    DELETE FROM [dbo].[UserRoleMenuAccess];
+    ALTER TABLE [dbo].[UserRoleMenuAccess] DROP CONSTRAINT [FK_UserRoleMenuAccess_UserMenu];
+    ALTER TABLE [dbo].[UserRoleMenuAccess] WITH CHECK
+        ADD CONSTRAINT [FK_UserRoleMenuAccess_UserMenu]
+        FOREIGN KEY ([UserMenuId]) REFERENCES [dbo].[UserSubMenu]([UserSubMenuId]);
+END
+");
+
             await EnsureMenusAndAccessAsync(db);
             await EnsureDefaultAdminUserAsync(db);
             await EnsureMultiRoleUserAsync(db);

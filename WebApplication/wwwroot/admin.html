@@ -313,7 +313,57 @@
 
         <h2><i class="fas fa-users icon-green"></i>اعضای سایت</h2>
 
-        <p class="muted-text" style="margin-top:0">لیست همه اعضا؛ می‌توانید عضو را فعال/غیرفعال کنید یا توضیح مدیریتی برای او بنویسید.</p>
+        <p class="muted-text" style="margin-top:0">عضو، خیر یا مدیر صندوق جدید را همین‌جا تعریف کنید. هر مدیر به همان پنل دسترسی دارد. حساب موجود را هم می‌توانید فعال یا غیرفعال کنید.</p>
+
+        <h3 style="font-size:1rem;margin:0 0 .65rem"><i class="fas fa-user-plus icon-green"></i>تعریف عضو یا مدیر</h3>
+        <div class="row">
+          <div>
+            <label>نام</label>
+            <input id="newMemberFirstName" maxlength="50" />
+          </div>
+          <div>
+            <label>نام خانوادگی</label>
+            <input id="newMemberLastName" maxlength="50" />
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label>کد ملی</label>
+            <input id="newMemberNationalCode" maxlength="10" inputmode="numeric" placeholder="۱۰ رقم" />
+          </div>
+          <div>
+            <label>شماره موبایل</label>
+            <input id="newMemberMobile" maxlength="11" inputmode="numeric" placeholder="09xxxxxxxxx" />
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label>نوع عضویت</label>
+            <select id="newMemberRoleType">
+              <option value="2">وام‌گیرنده / عضو</option>
+              <option value="3">خیر (کمک‌کننده)</option>
+              <option value="1">مدیر صندوق</option>
+            </select>
+          </div>
+          <div id="newMemberDonationBox" style="display:none">
+            <label>مبلغ کمک ماهانه (ریال)</label>
+            <input id="newMemberDonation" type="text" class="amount-input" inputmode="numeric" placeholder="مثال: 500,000" />
+          </div>
+        </div>
+        <label>توضیح مدیر (اختیاری)</label>
+        <input id="newMemberNote" maxlength="500" placeholder="یادداشت داخلی؛ عضو آن را نمی‌بیند" />
+        <button type="button" class="btn primary" id="btnCreateMember"><i class="fas fa-user-plus"></i>ثبت</button>
+        <div id="newMemberMsg" class="msg"></div>
+        <div id="newMemberResult" class="last-send-box" style="display:none">
+          <h3 id="newMemberResultTitle">اطلاعات ورود</h3>
+          <p class="muted-text" style="margin-top:0">این رمز را به عضو بدهید. نام کاربری همان کد ملی است. لینک بله را هم برایش بفرستید تا ربات را استارت کند.</p>
+          <p>نام: <b id="newMemberResultName"></b></p>
+          <p>کد ملی: <b dir="ltr" id="newMemberResultNational"></b></p>
+          <p>رمز عبور: <b dir="ltr" id="newMemberResultPassword"></b></p>
+          <p><a id="newMemberBotLink" class="btn primary" target="_blank" rel="noopener" style="display:none"><img src="images/bale-logo.svg" alt="" class="bale-btn-logo" />لینک استارت ربات بله</a></p>
+        </div>
+
+        <h3 style="font-size:1rem;margin:1.25rem 0 .65rem">فهرست اعضا</h3>
 
         <div class="row" style="margin-bottom:.85rem;align-items:flex-end">
           <div style="flex:1">
@@ -739,6 +789,68 @@
 
       G.$('memberSearch').addEventListener('input', renderMembers);
       G.$('memberStatusFilter').addEventListener('change', renderMembers);
+
+      G.$('newMemberRoleType').addEventListener('change', function () {
+        G.$('newMemberDonationBox').style.display = G.$('newMemberRoleType').value === '3' ? 'block' : 'none';
+      });
+
+      function showCreatedMember(info) {
+        const box = G.$('newMemberResult');
+        box.style.display = 'block';
+        const roleName = G.pick(info, 'roleName') || '';
+        G.$('newMemberResultTitle').textContent = roleName === 'مدیر صندوق' ? 'اطلاعات ورود مدیر' : 'اطلاعات ورود';
+        G.$('newMemberResultName').textContent = G.pick(info, 'fullName') || '';
+        G.$('newMemberResultNational').textContent = G.pick(info, 'nationalCode') || '';
+        G.$('newMemberResultPassword').textContent = G.pick(info, 'password') || '';
+        const link = G.$('newMemberBotLink');
+        const botLink = G.pick(info, 'botLink') || '';
+        if (botLink) {
+          link.href = botLink;
+          link.style.display = 'inline-flex';
+        } else {
+          link.style.display = 'none';
+        }
+      }
+
+      G.bindClick('btnCreateMember', async function () {
+        const btn = G.$('btnCreateMember');
+        const roleType = Number(G.$('newMemberRoleType').value);
+        const donation = G.getAmountValue('newMemberDonation');
+        if (roleType === 1) {
+          const ok = await G.confirmDialog({
+            title: 'تعریف مدیر صندوق',
+            text: 'این شخص مثل شما به همه بخش‌های پنل مدیران دسترسی دارد.',
+            confirmText: 'ثبت مدیر',
+            cancelText: 'انصراف'
+          });
+          if (!ok) return;
+        }
+        btn.disabled = true;
+        const { data } = await G.post('/api/admin/members', {
+          managerUserId: managerId,
+          firstName: G.$('newMemberFirstName').value.trim(),
+          lastName: G.$('newMemberLastName').value.trim(),
+          nationalCode: G.$('newMemberNationalCode').value.trim(),
+          mobile: G.$('newMemberMobile').value.trim(),
+          roleType: roleType,
+          monthlyDonationAmount: roleType === 3 && donation > 0 ? donation : null,
+          description: G.$('newMemberNote').value.trim()
+        });
+        btn.disabled = false;
+        G.showMsg(G.$('newMemberMsg'), data.message || 'خطا در ثبت عضو', data.success);
+        if (!data.success) return;
+
+        showCreatedMember(data.data || {});
+        G.$('newMemberFirstName').value = '';
+        G.$('newMemberLastName').value = '';
+        G.$('newMemberNationalCode').value = '';
+        G.$('newMemberMobile').value = '';
+        G.$('newMemberNote').value = '';
+        G.$('newMemberDonation').value = '';
+        G.$('newMemberRoleType').value = '2';
+        G.$('newMemberDonationBox').style.display = 'none';
+        await loadMembers();
+      });
 
 
 

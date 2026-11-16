@@ -26,6 +26,7 @@ namespace Services.Abstractions
     public interface ILoanService
     {
         Task<ApiResultDto> RequestLoanAsync(LoanRequestDto dto, CancellationToken cancellationToken = default);
+        Task<ApiResultDto> SetLoanAmountAsync(SetLoanAmountDto dto, CancellationToken cancellationToken = default);
         Task<ApiResultDto> DisburseLoanAsync(DisburseLoanDto dto, CancellationToken cancellationToken = default);
         Task<ApiResultDto> RejectLoanAsync(int loanId, string reason, int managerUserId, CancellationToken cancellationToken = default);
         Task<ApiResultDto> MoveInQueueAsync(int loanId, int direction, int managerUserId, CancellationToken cancellationToken = default);
@@ -93,6 +94,7 @@ namespace Services.Abstractions
         Task<List<UserDto>> GetMembersAsync(CancellationToken cancellationToken = default);
         Task<ApiResultDto> CreateMemberAsync(AdminCreateMemberDto dto, CancellationToken cancellationToken = default);
         Task<ApiResultDto> UpdateMemberAsync(AdminUpdateMemberDto dto, CancellationToken cancellationToken = default);
+        Task<ApiResultDto> EnqueueMemberAsync(AdminEnqueueMemberDto dto, CancellationToken cancellationToken = default);
     }
 
     public interface IRoleMenuService

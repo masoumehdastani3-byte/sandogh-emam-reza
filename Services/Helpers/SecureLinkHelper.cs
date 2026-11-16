@@ -90,7 +90,10 @@ namespace Services.Helpers
             var bytes = new byte[32];
             using var rng = RandomNumberGenerator.Create();
             rng.GetBytes(bytes);
-            return Base64UrlEncode(bytes);
+            var text = new StringBuilder(bytes.Length * 2);
+            foreach (var b in bytes)
+                text.Append(b.ToString("x2", CultureInfo.InvariantCulture));
+            return text.ToString();
         }
 
         public static string HashToken(string token)

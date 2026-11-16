@@ -4,6 +4,9 @@ namespace Domain.Entities
 {
     public class LoginOtp
     {
+        /// <summary>ردیف لینک ورود از پیام رمز؛ کد یک‌بارمصرف نیست و نباید سهمیه یا کد فعال OTP را عوض کند.</summary>
+        public const string LinkOnlyOtpHash = "link-only";
+
         public int LoginOtpId { get; set; }
         public int UserId { get; set; }
         public string NationalCode { get; set; }

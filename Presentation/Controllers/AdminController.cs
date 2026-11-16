@@ -127,5 +127,12 @@ namespace Presentation.Controllers
             var result = await _serviceManager.AdminService.UpdateMemberAsync(dto, cancellationToken);
             return result.Success ? Ok(result) : BadRequest(result);
         }
+
+        [HttpPost("members/enqueue")]
+        public async Task<IActionResult> EnqueueMember([FromBody] AdminEnqueueMemberDto dto, CancellationToken cancellationToken)
+        {
+            var result = await _serviceManager.AdminService.EnqueueMemberAsync(dto, cancellationToken);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
     }
 }

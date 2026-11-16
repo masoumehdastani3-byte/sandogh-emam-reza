@@ -20,6 +20,18 @@ namespace Presentation.Controllers
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
+        [HttpPost("set-amount")]
+        public async Task<IActionResult> SetAmount([FromBody] SetLoanAmountDto dto, CancellationToken cancellationToken)
+        {
+            if (dto == null)
+                return BadRequest(ApiResultDto.Fail("درخواست نامعتبر است"));
+            if (!await _serviceManager.AdminService.IsManagerAsync(dto.ManagerUserId, cancellationToken))
+                return Unauthorized(ApiResultDto.Fail("فقط مدیر صندوق مجاز است"));
+
+            var result = await _serviceManager.LoanService.SetLoanAmountAsync(dto, cancellationToken);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
         [HttpPost("disburse")]
         public async Task<IActionResult> Disburse([FromBody] DisburseLoanDto dto, CancellationToken cancellationToken)
         {

@@ -69,8 +69,8 @@
         <h2 style="margin-top:0">درخواست وام</h2>
         <div id="loanActiveBanner" class="loan-info-banner" style="display:none"></div>
         <div id="loanRequestForm">
-          <p class="simple-lead">یکی از مبلغ‌ها را بزنید. سقف وام: <b id="maxLoan">—</b></p>
-          <div class="choice-list" id="amountButtons"></div>
+          <p class="simple-lead">درخواست را ثبت کنید. مبلغ را مسئول صندوق تعیین می‌کند و در بله به شما می‌گوید.</p>
+          <button type="button" class="btn primary big-action" id="btnRequestLoan">درخواست وام</button>
         </div>
         <div id="loanMsg" class="msg"></div>
       </div>
@@ -92,7 +92,7 @@
       <p style="text-align:center;margin:1rem 0 2rem"><a href="profile.html">اصلاح نام و آدرس</a></p>
     </div>
   </div>
-  <script src="js/app.js?v=20261114b"></script>
+  <script src="js/app.js?v=20261116c"></script>
   <script>
     GoodLoan.ready(function () {
       const G = GoodLoan;
@@ -109,17 +109,6 @@
 
       function toman(rial) {
         return G.formatNumber(Math.round(Number(rial || 0) / 10)) + ' تومان';
-      }
-
-      function amountChoices(maxRial) {
-        const steps = [1000000, 2000000, 3000000, 5000000, 10000000];
-        const list = [];
-        steps.forEach(function (tomanValue) {
-          const rial = tomanValue * 10;
-          if (rial <= maxRial) list.push(rial);
-        });
-        if (maxRial > 0 && list.indexOf(maxRial) < 0) list.push(maxRial);
-        return list;
       }
 
       async function payInstallment(inst) {
@@ -202,7 +191,10 @@
         } else if (waiting) {
           banner.style.display = 'block';
           banner.className = 'loan-info-banner';
-          banner.textContent = 'درخواست وام شما ثبت شده و در نوبت است. هر وقت نوبت شما شود، در بله خبر می‌دهیم.';
+          var decided = Number(G.pick(waiting, 'loanAmount')) || 0;
+          banner.textContent = decided > 0
+            ? 'درخواست شما در نوبت است. مبلغ تعیین‌شده: ' + toman(decided) + '. وقتی پرداخت شود در بله هم خبر می‌دهیم.'
+            : 'درخواست وام شما ثبت شده و در نوبت است. مبلغ را مسئول صندوق تعیین می‌کند و در بله خبر می‌دهد.';
           form.style.display = 'none';
           G.$('statusLine').textContent = 'درخواست شما در نوبت است.';
         } else if (activeLoan) {
@@ -216,7 +208,7 @@
           form.style.display = 'block';
           G.$('statusLine').textContent = loans.length
             ? 'وام قبلی تمام شده. اگر لازم است دوباره درخواست دهید.'
-            : 'هنوز وام نگرفته‌اید. اگر نیاز دارید پایین مبلغ را انتخاب کنید.';
+            : 'هنوز وام نگرفته‌اید. اگر نیاز دارید پایین درخواست دهید.';
         }
 
         const installments = G.pick(panel, 'installments') || [];
@@ -229,12 +221,6 @@
           ? 'قسط مانده: ' + open.length + ' — بعدی: ' + toman(G.pick(nextInstallment, 'installmentAmount'))
           : 'قسط بازی ندارید.';
         G.$('btnPayNext').style.display = nextInstallment ? 'inline-flex' : 'none';
-
-        const maxLoan = Number(G.pick(panel, 'maxLoanAmount')) || 0;
-        G.$('maxLoan').textContent = toman(maxLoan);
-        G.$('amountButtons').innerHTML = amountChoices(maxLoan).map(function (rial) {
-          return '<button type="button" class="btn dark btn-loan-choice" data-amount="' + rial + '">' + toman(rial) + '</button>';
-        }).join('');
 
         if (G.pick(user, 'monthlyDonationAmount')) {
           G.setAmountValue('payAmount', Math.round(Number(G.pick(user, 'monthlyDonationAmount')) / 10));
@@ -309,30 +295,27 @@
         if (data.success && gatewayUrl) location.href = gatewayUrl;
       });
 
-      document.addEventListener('click', async function (e) {
-        const choice = e.target.closest('.btn-loan-choice');
-        if (choice && G.$('amountButtons').contains(choice)) {
-          const amount = Number(choice.getAttribute('data-amount'));
-          const ok = await G.confirmDialog({
-            title: 'درخواست وام',
-            text: 'درخواست در نوبت قرار می‌گیرد. تعداد افراد صف به شما نشان داده نمی‌شود.',
-            rows: [{ label: 'مبلغ', value: toman(amount), strong: true }],
-            confirmText: 'ثبت درخواست',
-            cancelText: 'انصراف'
-          });
-          if (!ok) return;
-          choice.disabled = true;
-          const { data } = await G.post('/api/loan/request', {
-            userId: userId,
-            loanAmount: amount,
-            description: 'درخواست از سایت'
-          });
-          choice.disabled = false;
-          G.showMsg(G.$('loanMsg'), data.message || 'ثبت نشد', data.success);
-          if (data.success) load();
-          return;
-        }
+      G.bindClick('btnRequestLoan', async function () {
+        const ok = await G.confirmDialog({
+          title: 'درخواست وام',
+          text: 'درخواست در نوبت قرار می‌گیرد. مبلغ را مسئول صندوق تعیین می‌کند و در بله به شما می‌گوید.',
+          confirmText: 'ثبت درخواست',
+          cancelText: 'انصراف'
+        });
+        if (!ok) return;
+        const btn = G.$('btnRequestLoan');
+        btn.disabled = true;
+        const { data } = await G.post('/api/loan/request', {
+          userId: userId,
+          loanAmount: 0,
+          description: 'درخواست از سایت'
+        });
+        btn.disabled = false;
+        G.showMsg(G.$('loanMsg'), data.message || 'ثبت نشد', data.success);
+        if (data.success) load();
+      });
 
+      document.addEventListener('click', async function (e) {
         const payBtn = e.target.closest('.btn-pay-one');
         if (payBtn && G.$('instList').contains(payBtn)) {
           const installmentId = Number(payBtn.getAttribute('data-id'));

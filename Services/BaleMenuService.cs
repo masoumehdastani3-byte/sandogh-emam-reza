@@ -155,8 +155,13 @@ namespace Services
 
             if (data.StartsWith("la:", StringComparison.Ordinal))
             {
-                if (long.TryParse(data.Substring(3), out var amount))
-                    await RequestLoanAmountAsync(user, chatId, amount, cancellationToken);
+                await RequestLoanWithoutAmountAsync(user, chatId, cancellationToken);
+                return;
+            }
+
+            if (data.StartsWith("a:", StringComparison.Ordinal) && int.TryParse(data.Substring(2), out var amountLoanId))
+            {
+                await BeginSetAmountAsync(user, chatId, amountLoanId, cancellationToken);
                 return;
             }
 
@@ -200,6 +205,19 @@ namespace Services
                     return;
                 }
 
+                if (pending.StartsWith("amount:", StringComparison.Ordinal) && int.TryParse(pending.Substring(7), out var amountLoanId))
+                {
+                    if (!TryReadMoney(text, out var tomanAmount))
+                    {
+                        await _bale.SendMessageAsync(chatId, "مبلغ را به تومان بنویسید. مثال: 3000000", cancellationToken);
+                        return;
+                    }
+
+                    Pending.TryRemove(chatId, out _);
+                    await ApplySetAmountAsync(user, chatId, amountLoanId, tomanAmount, cancellationToken);
+                    return;
+                }
+
                 if (pending == "donation" && TryReadMoney(text, out var toman))
                 {
                     Pending.TryRemove(chatId, out _);
@@ -228,7 +246,7 @@ namespace Services
 
             if (norm == "درخواست وام" || norm == "وام")
             {
-                await SendLoanChoicesAsync(user, chatId, cancellationToken);
+                await RequestLoanWithoutAmountAsync(user, chatId, cancellationToken);
                 return;
             }
 
@@ -252,7 +270,7 @@ namespace Services
 
             if (TryReadMoney(text, out _))
             {
-                await SendHomeAsync(user, chatId, "مبلغ را از دکمه‌ها انتخاب کنید. دکمه «درخواست وام» را بزنید.", cancellationToken);
+                await SendHomeAsync(user, chatId, "مبلغ وام را مسئول صندوق تعیین می‌کند. دکمه «درخواست وام» را بزنید.", cancellationToken);
                 return;
             }
 
@@ -279,7 +297,7 @@ namespace Services
             string body;
             if (waiting != null)
             {
-                body = name + "درخواست وام شما ثبت شده و در نوبت است.\nهر وقت نوبت شما شود، همین‌جا خبر می‌دهیم.\nمبلغ درخواست: " + MoneyText.Toman(waiting.LoanAmount);
+                body = name + "درخواست وام شما ثبت شده و در نوبت است.\n" + AmountLine(waiting.LoanAmount) + "\nهر وقت وام پرداخت شود، همین‌جا خبر می‌دهیم.";
             }
             else if (active != null)
             {
@@ -370,7 +388,7 @@ namespace Services
             await _bale.SendWithKeyboardAsync(chatId, intro + "\nدکمه زیر را بزنید. صفحه بانک باز می‌شود.", BaleKeyboards.InlineUrl("رفتن به صفحه بانک", url), cancellationToken);
         }
 
-        private async Task SendLoanChoicesAsync(User user, string chatId, CancellationToken cancellationToken)
+        private async Task RequestLoanWithoutAmountAsync(User user, string chatId, CancellationToken cancellationToken)
         {
             if (user.RoleId == (int)UserRoleType.Donator)
             {
@@ -381,7 +399,9 @@ namespace Services
             var active = await _repository.LoanRepository.GetActiveLoanByUserIdAsync(user.UserId, cancellationToken);
             if (active != null && active.LoanRequestStatus == (byte)LoanRequestStatus.WaitingInQueue)
             {
-                await SendHomeAsync(user, chatId, "درخواست شما ثبت شده و در نوبت است. هر وقت نوبت شما شود خبر می‌دهیم.", cancellationToken);
+                await SendHomeAsync(user, chatId,
+                    "درخواست شما ثبت شده و در نوبت است.\n" + AmountLine(active.LoanAmount),
+                    cancellationToken);
                 return;
             }
 
@@ -392,31 +412,56 @@ namespace Services
                 return;
             }
 
-            var max = await MaxLoanRialAsync(cancellationToken);
-            var amounts = LoanAmountChoices(max);
-            if (amounts.Count == 0)
-            {
-                await SendHomeAsync(user, chatId, "الان سقف وام تنظیم نشده است. با مسئول صندوق صحبت کنید.", cancellationToken);
-                return;
-            }
-
-            var rows = amounts.Select(rial => new[] { new { text = MoneyText.Toman(rial), callback_data = "la:" + rial } }).ToArray();
-            await _bale.SendWithKeyboardAsync(chatId,
-                "مبلغ وام را انتخاب کنید. سقف: " + MoneyText.Toman(max),
-                new { inline_keyboard = rows },
-                cancellationToken);
-        }
-
-        private async Task RequestLoanAmountAsync(User user, string chatId, long amountRial, CancellationToken cancellationToken)
-        {
             var result = await _loanService.RequestLoanAsync(new LoanRequestDto
             {
                 UserId = user.UserId,
-                LoanAmount = amountRial,
+                LoanAmount = 0,
                 Description = "درخواست از بله"
             }, cancellationToken);
 
             await SendHomeAsync(user, chatId, result.Message ?? (result.Success ? "درخواست ثبت شد." : "درخواست ثبت نشد."), cancellationToken);
+        }
+
+        private async Task BeginSetAmountAsync(User user, string chatId, int loanId, CancellationToken cancellationToken)
+        {
+            if (!await IsManagerAsync(user, cancellationToken))
+            {
+                await SendHomeAsync(user, chatId, "تعیین مبلغ فقط برای مسئول صندوق است.", cancellationToken);
+                return;
+            }
+
+            var loan = await _repository.LoanRepository.GetByLoanIdAsync(loanId, cancellationToken);
+            if (loan == null || loan.LoanRequestStatus != (byte)LoanRequestStatus.WaitingInQueue)
+            {
+                await SendHomeAsync(user, chatId, "این درخواست دیگر در صف نیست.", cancellationToken);
+                return;
+            }
+
+            var name = loan.User?.FullName;
+            if (string.IsNullOrWhiteSpace(name))
+                name = "این نفر";
+            Pending[chatId] = "amount:" + loanId;
+            await _bale.SendMessageAsync(chatId,
+                "مبلغ وام " + name + " را به تومان بنویسید.\n" + AmountLine(loan.LoanAmount) + "\nمثال: 3000000",
+                cancellationToken);
+        }
+
+        private async Task ApplySetAmountAsync(User user, string chatId, int loanId, long amountToman, CancellationToken cancellationToken)
+        {
+            if (!await IsManagerAsync(user, cancellationToken))
+            {
+                await SendHomeAsync(user, chatId, "تعیین مبلغ فقط برای مسئول صندوق است.", cancellationToken);
+                return;
+            }
+
+            var result = await _loanService.SetLoanAmountAsync(new SetLoanAmountDto
+            {
+                LoanId = loanId,
+                ManagerUserId = user.UserId,
+                AmountToman = amountToman
+            }, cancellationToken);
+
+            await SendHomeAsync(user, chatId, result.Message ?? (result.Success ? "مبلغ ثبت شد." : "مبلغ ثبت نشد."), cancellationToken);
         }
 
         private async Task BeginDonationAsync(User user, string chatId, CancellationToken cancellationToken)
@@ -483,7 +528,7 @@ namespace Services
             }
 
             await _bale.SendWithKeyboardAsync(chatId,
-                "صف وام: " + queue.Count + " نفر.\nنفر بالاتر زودتر وام می‌گیرد. با دکمه‌ها نوبت را عوض کنید، وام بدهید یا رد کنید.",
+                "صف وام: " + queue.Count + " نفر.\nبا «تعیین مبلغ» مشخص کنید به هر نفر چقدر وام داده می‌شود. مبلغ در بله به خودش گفته می‌شود.",
                 BaleKeyboards.For(true, false),
                 cancellationToken);
 
@@ -494,7 +539,7 @@ namespace Services
                 var name = loan.User?.FullName;
                 if (string.IsNullOrWhiteSpace(name))
                     name = "عضو";
-                var text = (i + 1) + ". " + name + "\n" + MoneyText.Toman(loan.LoanAmount);
+                var text = (i + 1) + ". " + name + "\n" + AmountLine(loan.LoanAmount);
                 await _bale.SendWithKeyboardAsync(chatId, text, QueueItemKeyboard(loan.LoanId), cancellationToken);
             }
 
@@ -604,13 +649,6 @@ namespace Services
             return baseUrl.TrimEnd('/') + "/pay-installment.html?token=" + Uri.EscapeDataString(token);
         }
 
-        private async Task<long> MaxLoanRialAsync(CancellationToken cancellationToken)
-        {
-            var maxLoanStr = await _repository.SettingRepository.GetValueAsync("MaxLoanAmount", "50000000", cancellationToken);
-            long.TryParse(maxLoanStr, out var maxLoan);
-            return maxLoan <= 0 ? 50000000 : maxLoan;
-        }
-
         private async Task<bool> IsManagerAsync(User user, CancellationToken cancellationToken)
         {
             if (user == null)
@@ -621,21 +659,8 @@ namespace Services
             return managers.Any(m => m.UserId == user.UserId);
         }
 
-        private static List<long> LoanAmountChoices(long maxRial)
-        {
-            long[] tomanSteps = { 1000000, 2000000, 3000000, 5000000, 10000000 };
-            var list = new List<long>();
-            foreach (var toman in tomanSteps)
-            {
-                var rial = toman * 10;
-                if (rial <= maxRial)
-                    list.Add(rial);
-            }
-
-            if (maxRial > 0 && !list.Contains(maxRial))
-                list.Add(maxRial);
-            return list;
-        }
+        private static string AmountLine(long rial) =>
+            rial > 0 ? "مبلغ وام: " + MoneyText.Toman(rial) : "مبلغ وام هنوز مشخص نشده است.";
 
         private static object QueueItemKeyboard(int loanId)
         {
@@ -647,6 +672,10 @@ namespace Services
                     {
                         new { text = "جلوتر", callback_data = "q:-" + loanId },
                         new { text = "عقب‌تر", callback_data = "q:+" + loanId }
+                    },
+                    new[]
+                    {
+                        new { text = "تعیین مبلغ", callback_data = "a:" + loanId }
                     },
                     new[]
                     {

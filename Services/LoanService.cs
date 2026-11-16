@@ -41,7 +41,7 @@ namespace Services
             long.TryParse(maxLoanStr, out var maxLoan);
             if (maxLoan <= 0) maxLoan = 50000000;
 
-            if (dto.LoanAmount <= 0 || dto.LoanAmount > maxLoan)
+            if (dto.LoanAmount < 0 || dto.LoanAmount > maxLoan)
                 return ApiResultDto.Fail($"مبلغ وام باید بین ۱ و {maxLoan:N0} ریال باشد");
 
             var active = await _repositoryManager.LoanRepository.GetActiveLoanByUserIdAsync(dto.UserId, cancellationToken);
@@ -88,7 +88,62 @@ namespace Services
             var loanDto = _mapper.Map<LoanDto>(loan);
             loanDto.QueuePosition = 0;
 
-            return ApiResultDto.Ok("درخواست شما ثبت شد و در نوبت است. هر وقت نوبت شما شود، در بله خبر می‌دهیم.", loanDto);
+            var queued = dto.LoanAmount > 0
+                ? "درخواست شما ثبت شد و در نوبت است. هر وقت نوبت شما شود، در بله خبر می‌دهیم."
+                : "درخواست شما ثبت شد. مبلغ را مسئول صندوق تعیین می‌کند و در بله به شما می‌گوید.";
+            return ApiResultDto.Ok(queued, loanDto);
+        }
+
+        public async Task<ApiResultDto> SetLoanAmountAsync(SetLoanAmountDto dto, CancellationToken cancellationToken = default)
+        {
+            if (dto == null || dto.LoanId <= 0)
+                return ApiResultDto.Fail("درخواست نامعتبر است");
+            if (dto.AmountToman <= 0)
+                return ApiResultDto.Fail("مبلغ وام را به تومان بنویسید");
+
+            var loan = await _repositoryManager.LoanRepository.GetByLoanIdAsync(dto.LoanId, cancellationToken);
+            if (loan == null)
+                return ApiResultDto.Fail("وام یافت نشد");
+            if (loan.LoanRequestStatus != (byte)LoanRequestStatus.WaitingInQueue)
+                return ApiResultDto.Fail("فقط برای درخواست‌های داخل صف می‌توان مبلغ تعیین کرد");
+
+            var maxLoanStr = await _repositoryManager.SettingRepository.GetValueAsync("MaxLoanAmount", "50000000", cancellationToken);
+            long.TryParse(maxLoanStr, out var maxLoan);
+            if (maxLoan <= 0) maxLoan = 50000000;
+
+            var amountRial = dto.AmountToman * 10;
+            if (amountRial > maxLoan)
+                return ApiResultDto.Fail("این مبلغ از سقف وام بیشتر است. سقف: " + MoneyText.Toman(maxLoan));
+
+            var installmentCount = loan.InstallmentCount ?? 10;
+            if (installmentCount <= 0) installmentCount = 10;
+
+            loan.LoanAmount = amountRial;
+            loan.RemainAmount = amountRial;
+            loan.InstallmentCount = installmentCount;
+            loan.InstallmentAmount = amountRial / installmentCount;
+            loan.UpdateDate = DateTime.Now;
+            loan.ModifyUserId = dto.ManagerUserId;
+            _repositoryManager.LoanRepository.Update(loan);
+            await _repositoryManager.UnitOfWork.SaveChangesAsync(cancellationToken);
+
+            var user = loan.User ?? await _repositoryManager.UserRepository.GetByUserIdAsync(loan.UserId, cancellationToken);
+            var amountText = MoneyText.Toman(amountRial);
+            var notified = false;
+            if (user != null && !string.IsNullOrWhiteSpace(user.BaleChatId))
+            {
+                var name = string.IsNullOrWhiteSpace(user.FullName) ? "" : user.FullName + "\n";
+                notified = await _baleService.SendWithKeyboardAsync(user.BaleChatId,
+                    name + "مبلغ وام شما مشخص شد.\nمبلغ: " + amountText +
+                    "\nاین مبلغ را مسئول صندوق تعیین کرده است. وقتی وام پرداخت شود، همین‌جا خبر می‌دهیم.",
+                    BaleKeyboards.For(false, user.RoleId == (int)UserRoleType.Donator),
+                    cancellationToken);
+            }
+
+            var message = notified
+                ? "مبلغ " + amountText + " ثبت شد و در بله به متقاضی گفته شد."
+                : "مبلغ " + amountText + " ثبت شد. این شخص به بله وصل نیست و پیام نرفت.";
+            return ApiResultDto.Ok(message, _mapper.Map<LoanDto>(loan));
         }
 
         public async Task<ApiResultDto> DisburseLoanAsync(DisburseLoanDto dto, CancellationToken cancellationToken = default)
@@ -99,6 +154,8 @@ namespace Services
 
             if (loan.LoanRequestStatus != (byte)LoanRequestStatus.WaitingInQueue)
                 return ApiResultDto.Fail("این وام در صف انتظار نیست");
+            if (loan.LoanAmount <= 0)
+                return ApiResultDto.Fail("اول مبلغ وام این نفر را مشخص کنید");
 
             var balance = await _repositoryManager.FundTransactionRepository.GetCurrentBalanceAsync(cancellationToken);
             if (balance < loan.LoanAmount)

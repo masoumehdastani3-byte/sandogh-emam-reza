@@ -247,8 +247,12 @@ namespace Services
                 .ToList();
 
             var dtos = _mapper.Map<List<UserDto>>(users);
+            var openUserIds = await GetOpenLoanUserIdsAsync(cancellationToken);
             foreach (var dto in dtos)
+            {
                 dto.Password = null;
+                dto.HasOpenLoan = openUserIds.Contains(dto.UserId);
+            }
             return dtos;
         }
 
@@ -344,9 +348,18 @@ namespace Services
                 return ApiResultDto.Fail("ثبت عضو با مشکل مواجه شد");
 
             var botLink = _baleService.GetBotStartLink(user.UserId);
+            string queueError = null;
+            if (roleType == UserRoleType.Member)
+                queueError = await EnqueueBorrowerAsync(user, dto.ManagerUserId, cancellationToken);
+            var queued = roleType == UserRoleType.Member && queueError == null;
+
             var message = roleType == UserRoleType.Manager
                 ? "مدیر صندوق ثبت شد. با کد ملی و این رمز وارد پنل مدیران می‌شود و همان دسترسی شما را دارد."
-                : "عضو ثبت شد. رمز ورود را به او بدهید. با استارت ربات بله، پیام‌های صندوق برایش می‌رود.";
+                : queued
+                    ? "عضو ثبت شد و به صف وام رفت. مبلغ را از بخش صف وام تعیین کنید. رمز ورود را هم به او بدهید."
+                    : queueError != null
+                        ? "عضو ثبت شد، ولی وارد صف وام نشد: " + queueError
+                        : "عضو ثبت شد. رمز ورود را به او بدهید. با استارت ربات بله، پیام‌های صندوق برایش می‌رود.";
             return ApiResultDto.Ok(
                 message,
                 new
@@ -358,8 +371,29 @@ namespace Services
                     user.RoleId,
                     roleName = role.RoleName,
                     password,
-                    botLink
+                    botLink,
+                    queued
                 });
+        }
+
+        public async Task<ApiResultDto> EnqueueMemberAsync(AdminEnqueueMemberDto dto, CancellationToken cancellationToken = default)
+        {
+            if (dto == null || dto.UserId <= 0)
+                return ApiResultDto.Fail("شناسه عضو نامعتبر است");
+            if (!await IsManagerAsync(dto.ManagerUserId, cancellationToken))
+                return ApiResultDto.Fail("فقط مدیر صندوق مجاز است");
+
+            var user = await _repositoryManager.UserRepository.GetByUserIdAsync(dto.UserId, cancellationToken);
+            if (user == null)
+                return ApiResultDto.Fail("عضو یافت نشد");
+            if (user.Active == false)
+                return ApiResultDto.Fail("این حساب غیرفعال است");
+
+            var queueError = await EnqueueBorrowerAsync(user, dto.ManagerUserId, cancellationToken);
+            if (queueError != null)
+                return ApiResultDto.Fail(queueError);
+
+            return ApiResultDto.Ok(user.FullName + " به صف وام اضافه شد. مبلغ را از همان‌جا تعیین کنید.");
         }
 
         public async Task<ApiResultDto> UpdateMemberAsync(AdminUpdateMemberDto dto, CancellationToken cancellationToken = default)
@@ -386,7 +420,14 @@ namespace Services
             }
 
             if (dto.UpdateDescription)
-                user.Description = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description.Trim();
+                user.Description = string.IsNullOrWhiteSpace(dto.Description) ? null : TrimNote(dto.Description);
+
+            if (dto.UpdateProfile)
+            {
+                var profileError = await ApplyMemberProfileAsync(user, dto, cancellationToken);
+                if (profileError != null)
+                    return ApiResultDto.Fail(profileError);
+            }
 
             user.UpdateDate = DateTime.Now;
             user.ModifyUserId = dto.ManagerUserId;
@@ -395,7 +436,162 @@ namespace Services
 
             var result = _mapper.Map<UserDto>(user);
             result.Password = null;
+            result.HasOpenLoan = (await GetOpenLoanUserIdsAsync(cancellationToken)).Contains(user.UserId);
             return ApiResultDto.Ok("اطلاعات عضو به‌روزرسانی شد", result);
+        }
+
+        private async Task<string> ApplyMemberProfileAsync(User user, AdminUpdateMemberDto dto, CancellationToken cancellationToken)
+        {
+            var firstName = dto.FirstName?.Trim() ?? "";
+            var lastName = dto.LastName?.Trim() ?? "";
+            if (string.IsNullOrWhiteSpace(firstName) || string.IsNullOrWhiteSpace(lastName))
+                return "نام و نام خانوادگی را بنویسید";
+            if (firstName.Length > 50 || lastName.Length > 50)
+                return "نام یا نام خانوادگی بلندتر از حد مجاز است";
+
+            var nationalCode = PersianDateHelper.ToEnglishDigits(dto.NationalCode ?? "").Trim();
+            var mobile = PersianDateHelper.ToEnglishDigits(dto.Mobile ?? "").Trim();
+            if (!PersianDateHelper.IsValidNationalCode(nationalCode))
+                return "کد ملی نامعتبر است";
+            if (!PersianDateHelper.IsValidMobile(mobile))
+                return "شماره موبایل نامعتبر است. مثال: 09121234567";
+
+            var existingNational = await _repositoryManager.UserRepository.GetByNationalCodeAsync(nationalCode, cancellationToken);
+            if (existingNational != null && existingNational.UserId != user.UserId)
+                return "این کد ملی برای عضو دیگری ثبت شده است";
+
+            var existingMobile = await _repositoryManager.UserRepository.GetByMobileAsync(mobile, cancellationToken);
+            if (existingMobile != null && existingMobile.UserId != user.UserId)
+                return "این شماره موبایل برای عضو دیگری ثبت شده است";
+
+            var roleType = (UserRoleType)(dto.RoleType ?? (byte)UserRoleType.Member);
+            if (dto.UserId == dto.ManagerUserId && roleType != UserRoleType.Manager)
+                return "نقش حساب خودتان را عوض نکنید";
+
+            string roleName;
+            if (roleType == UserRoleType.Manager)
+                roleName = "مدیر صندوق";
+            else if (roleType == UserRoleType.Donator)
+            {
+                if (dto.MonthlyDonationAmount == null || dto.MonthlyDonationAmount <= 0)
+                    return "مبلغ کمک ماهانه برای خیرین الزامی است";
+                roleName = "خیر";
+            }
+            else if (roleType == UserRoleType.Member)
+                roleName = "عضو / وام‌گیرنده";
+            else
+                return "نوع حساب نامعتبر است";
+
+            var currentIsMember = !IsManagerUser(user) && user.RoleId != (int)UserRoleType.Donator
+                && (user.UserRole?.RoleName ?? "") != "خیر";
+            if (roleType != UserRoleType.Member && currentIsMember)
+            {
+                var open = await _repositoryManager.LoanRepository.GetActiveLoanByUserIdAsync(user.UserId, cancellationToken);
+                if (open != null)
+                    return "این عضو در صف وام یا وام باز است. تا تمام نشود نقش او عوض نمی‌شود";
+            }
+
+            var roles = (await _repositoryManager.UserRoleRepository.GetAllAsync(cancellationToken)).ToList();
+            var role = roles.FirstOrDefault(r => r.RoleName == roleName)
+                ?? roles.FirstOrDefault(r => r.RoleId == (int)roleType);
+            if (role == null)
+                return "نقش کاربری در سیستم تعریف نشده است";
+
+            user.FirstName = firstName;
+            user.LastName = lastName;
+            user.FullName = (firstName + " " + lastName).Trim();
+            user.NationalCode = nationalCode;
+            user.UserName = nationalCode;
+            user.Mobile = mobile;
+            user.RoleId = role.RoleId;
+            user.UserRole = role;
+            user.MonthlyDonationAmount = roleType == UserRoleType.Donator ? dto.MonthlyDonationAmount : null;
+            user.Description = TrimNote(dto.Description);
+
+            if (roleType == UserRoleType.Manager)
+                user.UserStatus = (byte)UserStatus.Manager;
+            else if (roleType == UserRoleType.Donator)
+                user.UserStatus = (byte)UserStatus.Donator;
+            else if (user.UserStatus == (byte)UserStatus.Manager || user.UserStatus == (byte)UserStatus.Donator)
+                user.UserStatus = (byte)UserStatus.LoanApplicant;
+
+            return null;
+        }
+
+        private async Task<string> EnqueueBorrowerAsync(User user, int managerUserId, CancellationToken cancellationToken)
+        {
+            if (user == null)
+                return "عضو یافت نشد";
+            if (IsManagerUser(user))
+                return "مدیر صندوق وارد صف وام نمی‌شود";
+
+            var roleName = user.UserRole?.RoleName ?? "";
+            if (user.RoleId == (int)UserRoleType.Donator || user.UserStatus == (byte)UserStatus.Donator || roleName == "خیر")
+                return "خیر وارد صف وام نمی‌شود";
+
+            var active = await _repositoryManager.LoanRepository.GetActiveLoanByUserIdAsync(user.UserId, cancellationToken);
+            if (active != null)
+                return "این عضو همین حالا در صف است یا وام باز دارد";
+
+            var installmentCountStr = await _repositoryManager.SettingRepository.GetValueAsync("DefaultInstallmentCount", "10", cancellationToken);
+            int.TryParse(installmentCountStr, out var installmentCount);
+            if (installmentCount <= 0) installmentCount = 10;
+
+            var now = DateTime.Now;
+            var queueCount = await _repositoryManager.LoanRepository.GetWaitingQueueCountAsync(cancellationToken);
+            var loan = new Loan
+            {
+                UserId = user.UserId,
+                LoanAmount = 0,
+                RemainAmount = 0,
+                InstallmentCount = installmentCount,
+                InstallmentAmount = 0,
+                RequestDate = now,
+                RequestDate_Shamsi = PersianDateHelper.ToShamsi(now),
+                QueuePriority = queueCount + 1,
+                LoanRequestStatus = (byte)LoanRequestStatus.WaitingInQueue,
+                LoanStatus = (byte)LoanStatus.Normal,
+                Description = "ورود به صف توسط مدیر صندوق",
+                CreateUserId = managerUserId,
+                CreateDate = now,
+                Active = true
+            };
+            _repositoryManager.LoanRepository.Insert(loan);
+
+            if (!IsManagerUser(user))
+                user.UserStatus = (byte)UserStatus.LoanApplicant;
+            user.UpdateDate = now;
+            user.ModifyUserId = managerUserId;
+            _repositoryManager.UserRepository.Update(user);
+            await _repositoryManager.UnitOfWork.SaveChangesAsync(cancellationToken);
+            return null;
+        }
+
+        private async Task<HashSet<int>> GetOpenLoanUserIdsAsync(CancellationToken cancellationToken)
+        {
+            var loans = await _repositoryManager.LoanRepository.GetAllAsync(cancellationToken);
+            return new HashSet<int>(loans.Where(l =>
+                l.Active != false &&
+                (l.LoanRequestStatus == (byte)LoanRequestStatus.WaitingInQueue ||
+                 (l.LoanRequestStatus == (byte)LoanRequestStatus.Disbursed &&
+                  l.LoanStatus != (byte)LoanStatus.Cleared)))
+                .Select(l => l.UserId));
+        }
+
+        private static bool IsManagerUser(User user)
+        {
+            if (user == null) return false;
+            if (user.UserStatus == (byte)UserStatus.Manager) return true;
+            if (user.RoleId == (int)UserRoleType.Manager) return true;
+            var roleName = user.UserRole?.RoleName ?? string.Empty;
+            return roleName == "مدیر صندوق" || roleName.Equals("Admin", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string TrimNote(string note)
+        {
+            if (string.IsNullOrWhiteSpace(note)) return null;
+            note = note.Trim();
+            return note.Length > 500 ? note.Substring(0, 500) : note;
         }
     }
 }

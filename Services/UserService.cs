@@ -226,7 +226,7 @@ namespace Services
             await _repositoryManager.UnitOfWork.SaveChangesAsync(cancellationToken);
 
             var baseUrl = await AppUrlHelper.GetBaseUrlAsync(_repositoryManager, _configuration, cancellationToken);
-            var oneClickLink = $"{baseUrl}/login.html?loginToken={Uri.EscapeDataString(loginToken)}";
+            var oneClickLink = $"{baseUrl}/enter/{loginToken}";
 
             var sent = await _baleService.NotifyLoginOtpAsync(user, otpCode, oneClickLink, cancellationToken);
             if (!sent)
@@ -297,12 +297,9 @@ namespace Services
             var tokenHash = SecureLinkHelper.HashToken(dto.LoginToken.Trim());
             var record = await _repositoryManager.LoginOtpRepository.GetActiveByLoginTokenHashAsync(tokenHash, cancellationToken);
             if (record == null)
-                return ApiResultDto.Fail("لینک ورود منقضی شده یا قبلاً استفاده شده است. دوباره کد ورود درخواست دهید.");
+                return ApiResultDto.Fail("لینک ورود منقضی شده است. دوباره از بله درخواست دهید یا با رمز وارد شوید.");
 
-            record.IsUsed = true;
-            _repositoryManager.LoginOtpRepository.Update(record);
-            await _repositoryManager.UnitOfWork.SaveChangesAsync(cancellationToken);
-
+            // لینک را همین‌جا نسوزانید. وب‌ویو بله صفحه را دو بار باز می‌کند و بار دوم نباید به فرم کد ملی برگردد.
             var user = await _repositoryManager.UserRepository.GetByUserIdAsync(record.UserId, cancellationToken);
             if (user == null || user.Active != true)
                 return ApiResultDto.Fail("کاربر یافت نشد یا غیرفعال است");

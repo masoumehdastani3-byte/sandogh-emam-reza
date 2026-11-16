@@ -14,6 +14,26 @@
 
   <link rel="icon" href="images/labkhand-logo.png" />
 
+  <script>
+
+    if (new URLSearchParams(location.search).get('loginToken'))
+
+      document.documentElement.classList.add('token-login');
+
+  </script>
+
+  <style>
+
+    html.token-login #otpStep,
+
+    html.token-login #passwordStep,
+
+    html.token-login .login-mode-toggle,
+
+    html.token-login .login-back { display: none; }
+
+  </style>
+
 </head>
 
 <body class="login-page">
@@ -124,7 +144,7 @@
 
   </div>
 
-  <script src="js/app.js?v=20261114b"></script>
+  <script src="js/app.js?v=20261116c"></script>
 
   <script>
 
@@ -188,11 +208,23 @@
           return;
         }
 
-        if (ret) location.href = ret;
+        var target = ret || (G.isManagerRole(roleId, roleName, userStatus) ? 'admin.html' : 'panel.html');
 
-        else if (G.isManagerRole(roleId, roleName, userStatus)) location.href = 'admin.html';
+        var session = new URLSearchParams();
 
-        else location.href = 'panel.html';
+        session.set('userId', G.pick(user, 'userId') || '');
+
+        session.set('fullName', G.pick(user, 'fullName') || '');
+
+        session.set('roleId', roleId || '');
+
+        session.set('roleName', roleName || '');
+
+        session.set('userStatus', userStatus || '');
+
+        session.set('nationalCode', G.pick(user, 'nationalCode') || '');
+
+        location.href = target + (target.indexOf('?') >= 0 ? '&' : '?') + session.toString();
 
       }
 
@@ -225,6 +257,12 @@
         G.$('baleBotLink').style.display = 'none';
 
       }
+
+
+
+      var linkError = new URLSearchParams(location.search).get('linkError');
+
+      if (linkError) G.showMsg(G.$('msg'), linkError, false);
 
 
 
@@ -369,6 +407,76 @@
       G.bindFormEnter(['otpCode'], 'btnVerifyOtp');
 
       G.bindFormEnter(['password'], 'btnLogin');
+
+
+
+      function setLoginFormVisible(visible) {
+
+        if (visible) document.documentElement.classList.remove('token-login');
+
+        G.$('otpStep').style.display = visible ? 'block' : 'none';
+
+        if (!visible) G.$('passwordStep').style.display = 'none';
+
+        var toggle = G.$('btnToggleMode');
+
+        if (toggle && toggle.parentElement) toggle.parentElement.style.display = visible ? '' : 'none';
+
+      }
+
+
+
+      function clearLoginTokenFromUrl() {
+
+        var params = new URLSearchParams(location.search);
+
+        if (!params.has('loginToken')) return;
+
+        params.delete('loginToken');
+
+        var next = params.toString();
+
+        history.replaceState(null, '', location.pathname + (next ? '?' + next : '') + location.hash);
+
+      }
+
+
+
+      async function loginFromBaleToken(token) {
+
+        setLoginFormVisible(false);
+
+        G.showMsg(G.$('msg'), 'در حال ورود از لینک بله...', true);
+
+        var result = await G.post('/api/user/login/token', { loginToken: token });
+
+        var data = result.data || {};
+
+        clearLoginTokenFromUrl();
+
+        if (!data.success || !data.data) {
+
+          setLoginFormVisible(true);
+
+          G.showMsg(G.$('msg'), data.message || 'لینک ورود منقضی شده است. با رمز یا کد بله وارد شوید.', false);
+
+          return;
+
+        }
+
+        G.$('msg').textContent = '';
+
+        G.$('msg').className = 'msg';
+
+        afterLogin(data.data);
+
+      }
+
+
+
+      var incomingToken = new URLSearchParams(location.search).get('loginToken');
+
+      if (incomingToken) loginFromBaleToken(incomingToken);
 
     });
 

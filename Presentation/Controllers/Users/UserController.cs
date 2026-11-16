@@ -1,7 +1,9 @@
 using Contracts.Models;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Services.Abstractions;
 using System;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -64,6 +66,60 @@ namespace Presentation.Controllers.Users
         {
             var result = await _serviceManager.UserService.VerifyLoginTokenAsync(dto, cancellationToken);
             return result.Success ? Ok(result) : Unauthorized(result);
+        }
+
+        /// <summary>لینک ورود از بله. نشست را می‌سازد و کاربر را داخل پنل می‌برد، نه فرم کد ملی.</summary>
+        [HttpGet("/enter/{token}")]
+        public async Task<IActionResult> EnterFromBale(string token, CancellationToken cancellationToken)
+        {
+            var result = await _serviceManager.UserService.VerifyLoginTokenAsync(
+                new VerifyLoginTokenDto { LoginToken = token }, cancellationToken);
+            var user = result.Data as UserDto;
+            if (!result.Success || user == null || user.UserId <= 0)
+            {
+                var message = string.IsNullOrWhiteSpace(result.Message) ? "لینک ورود نامعتبر است" : result.Message;
+                return Redirect("/login.html?linkError=" + Uri.EscapeDataString(message));
+            }
+
+            var roleName = user.RoleName ?? user.UserRole?.RoleName ?? "";
+            var next = LoggedInUrl(user, roleName);
+            var script =
+                "try{" +
+                "localStorage.setItem('gl_userId'," + JsonSerializer.Serialize(user.UserId.ToString()) + ");" +
+                "localStorage.setItem('gl_fullName'," + JsonSerializer.Serialize(user.FullName ?? "") + ");" +
+                "localStorage.setItem('gl_roleId'," + JsonSerializer.Serialize(user.RoleId.ToString()) + ");" +
+                "localStorage.setItem('gl_roleName'," + JsonSerializer.Serialize(roleName) + ");" +
+                "localStorage.setItem('gl_userStatus'," + JsonSerializer.Serialize(user.UserStatus.ToString()) + ");" +
+                "localStorage.setItem('gl_nationalCode'," + JsonSerializer.Serialize(user.NationalCode ?? "") + ");" +
+                "}catch(e){}" +
+                "location.replace(" + JsonSerializer.Serialize(next) + ");";
+
+            var html = "<!DOCTYPE html><html lang=\"fa\" dir=\"rtl\"><head><meta charset=\"utf-8\">" +
+                       "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">" +
+                       "<title>ورود</title></head><body><p>در حال ورود به سایت...</p><script>" +
+                       script + "</script></body></html>";
+            return Content(html, "text/html; charset=utf-8");
+        }
+
+        private static string LoggedInUrl(UserDto user, string roleName)
+        {
+            var nationalCode = user.NationalCode ?? "";
+            var multi = nationalCode == "0058715940";
+            var manager = user.UserStatus == 5
+                || roleName == "مدیر صندوق"
+                || string.Equals(roleName, "admin", StringComparison.OrdinalIgnoreCase)
+                || user.RoleId == 1;
+            var page = multi ? "login.html" : (manager ? "admin.html" : "panel.html");
+            var query = new QueryString()
+                .Add("userId", user.UserId.ToString())
+                .Add("fullName", user.FullName ?? "")
+                .Add("roleId", user.RoleId.ToString())
+                .Add("roleName", roleName ?? "")
+                .Add("userStatus", user.UserStatus.ToString())
+                .Add("nationalCode", nationalCode);
+            if (multi)
+                query = query.Add("choose", "1");
+            return "/" + page + query.ToUriComponent();
         }
 
         [HttpPut("profile")]

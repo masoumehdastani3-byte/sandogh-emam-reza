@@ -236,7 +236,8 @@ window.GoodLoan = (function () {
     if (options.showQueue) html += '<td>' + (pick(loan, 'queuePosition') || '-') + '</td>';
     html += '<td>' + loanId + '</td>';
     if (options.showMember) html += '<td>' + (pick(user, 'fullName') || pick(loan, 'userId') || '') + '</td>';
-    html += '<td class="amount">' + money(pick(loan, 'loanAmount')) + '</td>';
+    var loanAmount = Number(pick(loan, 'loanAmount')) || 0;
+    html += '<td class="amount">' + (loanAmount > 0 ? money(loanAmount) : 'هنوز مشخص نشده') + '</td>';
     html += '<td>' + shamsiDate(loan, 'requestDate_Shamsi', 'requestDate') + '</td>';
     if (options.showPaymentDate) html += '<td>' + shamsiDate(loan, 'paymentDate_Shamsi', 'paymentDate') + '</td>';
     if (options.showStatus) html += '<td>' + loanStatusText(loan) + '</td>';
@@ -247,6 +248,7 @@ window.GoodLoan = (function () {
         html += '<button type="button" class="btn dark btn-queue-move" data-id="' + loanId + '" data-dir="1">عقب‌تر</button>';
       }
       if (options.showActions) {
+        html += '<button type="button" class="btn dark btn-set-amount" data-id="' + loanId + '">تعیین مبلغ</button>';
         html += '<button type="button" class="btn primary btn-disburse" data-id="' + loanId + '">وام را بده</button>';
         html += '<button type="button" class="btn dark btn-reject" data-id="' + loanId + '">رد کن</button>';
       }
@@ -371,8 +373,38 @@ window.GoodLoan = (function () {
   function applyEntry(mode) {
     localStorage.setItem('gl_entry', mode);
     var target = mode === 'admin' ? 'admin.html' : 'panel.html';
-    if (location.pathname.toLowerCase().endsWith(target)) location.reload();
-    else location.href = target;
+    var params = new URLSearchParams();
+    var id = localStorage.getItem('gl_userId');
+    if (id) {
+      params.set('userId', id);
+      params.set('fullName', localStorage.getItem('gl_fullName') || '');
+      params.set('roleId', localStorage.getItem('gl_roleId') || '');
+      params.set('roleName', localStorage.getItem('gl_roleName') || '');
+      params.set('userStatus', localStorage.getItem('gl_userStatus') || '');
+      params.set('nationalCode', localStorage.getItem('gl_nationalCode') || '');
+    }
+    var query = params.toString();
+    location.href = target + (query ? '?' + query : '');
+  }
+
+  function absorbSessionQuery() {
+    try {
+      var params = new URLSearchParams(location.search);
+      var id = params.get('userId');
+      if (!id || !Number(id)) return;
+      localStorage.setItem('gl_userId', String(Number(id)));
+      if (params.has('fullName')) localStorage.setItem('gl_fullName', params.get('fullName') || '');
+      if (params.has('roleId')) localStorage.setItem('gl_roleId', params.get('roleId') || '');
+      if (params.has('roleName')) localStorage.setItem('gl_roleName', params.get('roleName') || '');
+      if (params.has('userStatus')) localStorage.setItem('gl_userStatus', params.get('userStatus') || '');
+      if (params.has('nationalCode')) localStorage.setItem('gl_nationalCode', normalizeNationalCode(params.get('nationalCode')));
+      if (String(localStorage.getItem('gl_userId')) !== String(Number(id))) return;
+      ['userId', 'fullName', 'roleId', 'roleName', 'userStatus', 'nationalCode'].forEach(function (key) {
+        params.delete(key);
+      });
+      var next = params.toString();
+      history.replaceState(null, '', location.pathname + (next ? '?' + next : '') + location.hash);
+    } catch (e) {}
   }
 
   function mountEntrySwitcher(host) {
@@ -977,7 +1009,7 @@ window.GoodLoan = (function () {
     applyMobileTableLabels(table);
   }
 
-
+  absorbSessionQuery();
 
   return {
 

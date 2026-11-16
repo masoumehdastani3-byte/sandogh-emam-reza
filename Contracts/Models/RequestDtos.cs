@@ -122,6 +122,14 @@ namespace Contracts.Models
         public string Description { get; set; }
     }
 
+    public class SetLoanAmountDto
+    {
+        public int LoanId { get; set; }
+        public int ManagerUserId { get; set; }
+        /// <summary>مبلغی که مدیر برای این نفر تعیین می‌کند، به تومان.</summary>
+        public long AmountToman { get; set; }
+    }
+
     public class RejectLoanDto
     {
         public int LoanId { get; set; }
@@ -240,6 +248,19 @@ namespace Contracts.Models
         public bool? Active { get; set; }
         public string Description { get; set; }
         public bool UpdateDescription { get; set; }
+        public bool UpdateProfile { get; set; }
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public string NationalCode { get; set; }
+        public string Mobile { get; set; }
+        public byte? RoleType { get; set; }
+        public long? MonthlyDonationAmount { get; set; }
+    }
+
+    public class AdminEnqueueMemberDto
+    {
+        public int ManagerUserId { get; set; }
+        public int UserId { get; set; }
     }
 
     /// <summary>تعریف عضو جدید از داخل پنل مدیر صندوق.</summary>

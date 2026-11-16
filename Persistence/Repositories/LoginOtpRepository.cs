@@ -20,7 +20,7 @@ namespace Persistence.Repositories
 
         public async Task<LoginOtp> GetActiveByNationalCodeAsync(string nationalCode, CancellationToken cancellationToken = default) =>
             await _dbContext.LoginOtps
-                .Where(a => a.NationalCode == nationalCode && !a.IsUsed && a.ExpiresAt > DateTime.Now)
+                .Where(a => a.NationalCode == nationalCode && !a.IsUsed && a.ExpiresAt > DateTime.Now && a.OtpHash != LoginOtp.LinkOnlyOtpHash)
                 .OrderByDescending(a => a.LoginOtpId)
                 .FirstOrDefaultAsync(cancellationToken);
 
@@ -34,13 +34,13 @@ namespace Persistence.Repositories
         {
             var since = DateTime.Now.AddMinutes(-withinMinutes);
             return await _dbContext.LoginOtps
-                .CountAsync(a => a.NationalCode == nationalCode && a.CreateDate >= since, cancellationToken);
+                .CountAsync(a => a.NationalCode == nationalCode && a.CreateDate >= since && a.OtpHash != LoginOtp.LinkOnlyOtpHash, cancellationToken);
         }
 
         public async Task InvalidateActiveForUserAsync(int userId, CancellationToken cancellationToken = default)
         {
             var items = await _dbContext.LoginOtps
-                .Where(a => a.UserId == userId && !a.IsUsed && a.ExpiresAt > DateTime.Now)
+                .Where(a => a.UserId == userId && !a.IsUsed && a.ExpiresAt > DateTime.Now && a.OtpHash != LoginOtp.LinkOnlyOtpHash)
                 .ToListAsync(cancellationToken);
 
             foreach (var item in items)

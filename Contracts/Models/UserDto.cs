@@ -41,6 +41,7 @@ namespace Contracts.Models
         public virtual ICollection<LoanDto> Loans { get; set; }
 
         public string RoleName { get; set; }
+        public bool HasOpenLoan { get; set; }
         public string UserStatusLifeName => EnumDescription.GetEnumDescription((UserStatusLife)UserStatusLife);
         public string UserActiveTypeName => EnumDescription.GetEnumDescription((UserActiveType)UserActiveType);
         public string UserStatusName => EnumDescription.GetEnumDescription((UserStatus)UserStatus);

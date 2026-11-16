@@ -23,6 +23,7 @@ namespace Services
         private readonly IConfiguration _configuration;
         private readonly IRepositoryManager _repositoryManager;
         private static long _lastUpdateId;
+        private const int PasswordLoginLinkDays = 7;
 
         public BaleService(IHttpClientFactory httpClientFactory, IConfiguration configuration, IRepositoryManager repositoryManager)
         {
@@ -143,9 +144,59 @@ namespace Services
             if (string.IsNullOrWhiteSpace(user?.BaleChatId))
                 return;
 
-            var msg = $"عضویت شما در صندوق قرض‌الحسنه انجام شد.\nکد ملی (نام کاربری): {user.NationalCode}\nرمز عبور: {password}\nلطفاً رمز را محفوظ نگه دارید.";
-            var ok = await SendMessageAsync(user.BaleChatId, msg, cancellationToken);
-            await LogAsync(user.UserId, NotificationType.Password, ok ? NotificationStatus.Sent : NotificationStatus.Failed, msg);
+            var loginLink = await TryCreatePasswordLoginLinkAsync(user, cancellationToken);
+            string msg;
+            object keyboard = null;
+            if (!string.IsNullOrWhiteSpace(loginLink))
+            {
+                msg = "عضویت شما در صندوق قرض‌الحسنه انجام شد.\n" +
+                      $"کد ملی (نام کاربری): {user.NationalCode}\n" +
+                      $"رمز عبور: {password}\n\n" +
+                      "برای ورود به سایت دکمه زیر را بزنید. مستقیم داخل حسابتان می‌روید و لازم نیست کد ملی یا رمز را وارد کنید.\n" +
+                      loginLink + "\n\n" +
+                      $"این دکمه تا {PasswordLoginLinkDays} روز معتبر است. رمز را برای دفعه‌های بعد نگه دارید.";
+                keyboard = BaleKeyboards.InlineUrl("ورود به سایت", loginLink);
+            }
+            else
+            {
+                msg = $"عضویت شما در صندوق قرض‌الحسنه انجام شد.\nکد ملی (نام کاربری): {user.NationalCode}\nرمز عبور: {password}\nلطفاً رمز را محفوظ نگه دارید.";
+            }
+
+            var ok = await SendWithKeyboardAsync(user.BaleChatId, msg, keyboard, cancellationToken);
+            var logText = string.IsNullOrWhiteSpace(loginLink) ? msg : msg.Replace(loginLink, "[لینک ورود]");
+            await LogAsync(user.UserId, NotificationType.Password, ok ? NotificationStatus.Sent : NotificationStatus.Failed, logText);
+        }
+
+        private async Task<string> TryCreatePasswordLoginLinkAsync(User user, CancellationToken cancellationToken)
+        {
+            if (user == null || user.UserId <= 0 || string.IsNullOrWhiteSpace(user.NationalCode))
+                return null;
+
+            try
+            {
+                var loginToken = SecureLinkHelper.CreateOpaqueToken();
+                var otp = new LoginOtp
+                {
+                    UserId = user.UserId,
+                    NationalCode = user.NationalCode.Trim(),
+                    OtpHash = LoginOtp.LinkOnlyOtpHash,
+                    LoginTokenHash = SecureLinkHelper.HashToken(loginToken),
+                    ExpiresAt = DateTime.Now.AddDays(PasswordLoginLinkDays),
+                    AttemptCount = 0,
+                    IsUsed = false,
+                    CreateDate = DateTime.Now
+                };
+
+                _repositoryManager.LoginOtpRepository.Insert(otp);
+                await _repositoryManager.UnitOfWork.SaveChangesAsync(cancellationToken);
+
+                var baseUrl = await AppUrlHelper.GetBaseUrlAsync(_repositoryManager, _configuration, cancellationToken);
+                return $"{baseUrl}/enter/{loginToken}";
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         public async Task<bool> NotifyLoginOtpAsync(User user, string otpCode, string oneClickLoginLink = null, CancellationToken cancellationToken = default)

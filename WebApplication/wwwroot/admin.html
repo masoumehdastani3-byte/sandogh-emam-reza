@@ -403,6 +403,9 @@
           </div>
           <label>توضیح مدیر (اختیاری)</label>
           <input id="memberEditNote" maxlength="500" />
+          <p class="muted-text" style="margin:.85rem 0 .35rem">لینک بله این عضو. با زدن روی آن، آدرس کپی می‌شود.</p>
+          <p><button type="button" class="btn primary" id="memberEditBotLink" style="display:none"><img src="images/bale-logo.svg" alt="" class="bale-btn-logo" /><span class="bot-link-label">کپی لینک استارت ربات بله</span></button></p>
+          <p id="memberEditBotUrl" dir="ltr" class="muted-text" style="display:none;word-break:break-all;cursor:pointer" title="برای کپی بزنید"></p>
           <div class="actions">
             <button type="button" class="btn primary" id="btnSaveMember"><i class="fas fa-save"></i>ذخیره تغییرات</button>
             <button type="button" class="btn dark" id="btnCancelMemberEdit">انصراف</button>
@@ -888,42 +891,53 @@
         G.$('newMemberResultName').textContent = G.pick(info, 'fullName') || '';
         G.$('newMemberResultNational').textContent = G.pick(info, 'nationalCode') || '';
         G.$('newMemberResultPassword').textContent = G.pick(info, 'password') || '';
-        const link = G.$('newMemberBotLink');
-        const url = G.$('newMemberBotUrl');
-        const botLink = G.pick(info, 'botLink') || '';
-        const label = link.querySelector('.bot-link-label');
+        setCopyLink(G.$('newMemberBotLink'), G.$('newMemberBotUrl'), G.pick(info, 'botLink') || '');
+      }
+
+      function setCopyLink(button, urlEl, botLink) {
+        const label = button.querySelector('.bot-link-label');
         if (label) label.textContent = 'کپی لینک استارت ربات بله';
         if (botLink) {
-          link.setAttribute('data-link', botLink);
-          link.style.display = 'inline-flex';
-          url.textContent = botLink;
-          url.style.display = 'block';
+          button.setAttribute('data-link', botLink);
+          button.style.display = 'inline-flex';
+          urlEl.textContent = botLink;
+          urlEl.style.display = 'block';
         } else {
-          link.style.display = 'none';
-          url.style.display = 'none';
+          button.removeAttribute('data-link');
+          button.style.display = 'none';
+          urlEl.textContent = '';
+          urlEl.style.display = 'none';
         }
       }
 
-      async function copyBotLink() {
-        const link = G.$('newMemberBotLink');
-        const url = link.getAttribute('data-link') || '';
+      async function copyFrom(button, msgEl) {
+        const url = button.getAttribute('data-link') || '';
         if (!url) return;
         const ok = await copyText(url);
-        const label = link.querySelector('.bot-link-label');
+        const label = button.querySelector('.bot-link-label');
         if (label) label.textContent = ok ? 'لینک کپی شد' : 'کپی نشد';
-        G.showMsg(G.$('newMemberMsg'), ok ? 'لینک بله کپی شد. می‌توانید برای عضو بفرستید.' : 'کپی نشد. لینک را دستی انتخاب کنید.', ok);
+        if (msgEl) G.showMsg(msgEl, ok ? 'لینک بله کپی شد. می‌توانید برای عضو بفرستید.' : 'کپی نشد. لینک را دستی انتخاب کنید.', ok);
       }
 
-      G.$('newMemberBotLink').addEventListener('click', copyBotLink);
-      G.$('newMemberBotUrl').addEventListener('click', copyBotLink);
+      function wireCopyLink(buttonId, urlId, msgId) {
+        const button = G.$(buttonId);
+        const url = G.$(urlId);
+        const msg = G.$(msgId);
+        button.addEventListener('click', function () { copyFrom(button, msg); });
+        url.addEventListener('click', function () { copyFrom(button, msg); });
+      }
+
+      wireCopyLink('newMemberBotLink', 'newMemberBotUrl', 'newMemberMsg');
+      wireCopyLink('memberEditBotLink', 'memberEditBotUrl', 'membersMsg');
 
       function memberById(userId) {
         return membersCache.find(function (u) { return Number(G.pick(u, 'userId')) === userId; });
       }
 
-      function showMemberEdit(user) {
+      async function showMemberEdit(user) {
         const box = G.$('memberEditBox');
-        G.$('memberEditUserId').value = G.pick(user, 'userId');
+        const userId = G.pick(user, 'userId');
+        G.$('memberEditUserId').value = userId;
         G.$('memberEditFirstName').value = G.pick(user, 'firstName') || '';
         G.$('memberEditLastName').value = G.pick(user, 'lastName') || '';
         G.$('memberEditNationalCode').value = G.pick(user, 'nationalCode') || '';
@@ -933,8 +947,14 @@
         const donation = Number(G.pick(user, 'monthlyDonationAmount')) || 0;
         G.setAmountValue('memberEditDonation', donation);
         G.$('memberEditDonationBox').style.display = G.$('memberEditRoleType').value === '3' ? 'block' : 'none';
+        setCopyLink(G.$('memberEditBotLink'), G.$('memberEditBotUrl'), '');
         box.style.display = 'block';
         box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+        const result = await G.get('/api/bale/bot-link/' + userId);
+        if (String(G.$('memberEditUserId').value) !== String(userId)) return;
+        const info = G.payload(result) || {};
+        setCopyLink(G.$('memberEditBotLink'), G.$('memberEditBotUrl'), G.pick(info, 'botLink') || '');
       }
 
       G.$('memberEditRoleType').addEventListener('change', function () {

@@ -55,6 +55,8 @@ namespace WebApplication
 
                     var handler = new SocketsHttpHandler
                     {
+                        UseProxy = false,
+                        AllowAutoRedirect = false,
                         SslOptions = new System.Net.Security.SslClientAuthenticationOptions
                         {
                             EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13

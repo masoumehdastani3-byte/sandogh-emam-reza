@@ -2,9 +2,16 @@ using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Net;
 using System.Net.Http;
+using System.Net.Security;
+using System.Net.Sockets;
+using System.Security.Authentication;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -15,12 +22,10 @@ namespace Services
     /// </summary>
     public sealed class NikooPaymentHubClient
     {
-        private readonly IHttpClientFactory _httpClientFactory;
         private readonly IConfiguration _configuration;
 
-        public NikooPaymentHubClient(IHttpClientFactory httpClientFactory, IConfiguration configuration)
+        public NikooPaymentHubClient(IConfiguration configuration)
         {
-            _httpClientFactory = httpClientFactory;
             _configuration = configuration;
         }
 
@@ -55,32 +60,183 @@ namespace Services
                 customerMobile
             };
 
-            try
+            var json = JsonConvert.SerializeObject(payload);
+            var primary = BuildCreateUrl();
+            var attempts = new List<(string Url, bool Loopback)> { (primary, false) };
+            if (!string.Equals(primary, CanonicalCreateUrl, StringComparison.OrdinalIgnoreCase))
+                attempts.Add((CanonicalCreateUrl, false));
+            // صندوق و نیکو روی یک سرور هستند. درخواست به آدرس عمومی گاهی صفحه HTML می‌گیرد
+            // (پروکسی سیستم، یا تبدیل POST به GET بعد از هدایت). اتصال به خود سرور این را دور می‌زند.
+            attempts.Add((CanonicalCreateUrl, true));
+            attempts.Add(("http://nikoooo.ir/api/payments/create", true));
+
+            string lastDetail = null;
+            foreach (var attempt in attempts)
             {
-                var client = _httpClientFactory.CreateClient("NikooPayment");
-                using var request = new HttpRequestMessage(HttpMethod.Post, BaseUrl + "/api/payments/create");
+                try
+                {
+                    var result = await PostCreateAsync(attempt.Url, json, attempt.Loopback, cancellationToken);
+                    if (result.Done)
+                        return (result.Success, result.Token, result.PaymentUrl, result.Message);
+                    lastDetail = result.Message;
+                }
+                catch (Exception ex)
+                {
+                    lastDetail = DescribeException(ex);
+                }
+            }
+
+            return (false, null, null, "ارتباط با درگاه نیکو برقرار نشد: " + (lastDetail ?? "پاسخ نامعتبر"));
+        }
+
+        private const string CanonicalCreateUrl = "https://nikoooo.ir/api/payments/create";
+
+        private string BuildCreateUrl()
+        {
+            var configured = BaseUrl;
+            if (string.IsNullOrWhiteSpace(configured))
+                configured = "https://nikoooo.ir";
+            if (!configured.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+                !configured.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                configured = "https://" + configured.TrimStart('/');
+
+            if (!Uri.TryCreate(configured, UriKind.Absolute, out var uri))
+                return CanonicalCreateUrl;
+
+            return uri.GetLeftPart(UriPartial.Authority).TrimEnd('/') + "/api/payments/create";
+        }
+
+        private async Task<(bool Done, bool Success, string Token, string PaymentUrl, string Message)> PostCreateAsync(
+            string url,
+            string json,
+            bool loopback,
+            CancellationToken cancellationToken)
+        {
+            using var client = new HttpClient(CreateHandler(loopback)) { Timeout = TimeSpan.FromSeconds(20) };
+            var current = url;
+
+            for (var hop = 0; hop < 4; hop++)
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Post, current);
+                request.Version = HttpVersion.Version11;
                 request.Headers.TryAddWithoutValidation("X-App-Id", AppId);
                 request.Headers.TryAddWithoutValidation("X-Api-Key", ApiKey);
-                request.Content = new StringContent(JsonConvert.SerializeObject(payload), Encoding.UTF8, "application/json");
+                request.Headers.TryAddWithoutValidation("User-Agent", "GoodLoan-NikooPayment");
+                request.Content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                var response = await client.SendAsync(request, cancellationToken);
+                using var response = await client.SendAsync(request, cancellationToken);
+                if (IsRedirect(response.StatusCode))
+                {
+                    var next = ResolveRedirect(current, response.Headers.Location);
+                    if (next == null)
+                        return (false, false, null, null, "هدایت درگاه نیکو نامعتبر بود");
+                    current = next;
+                    continue;
+                }
+
                 var body = await response.Content.ReadAsStringAsync();
-                var json = JObject.Parse(string.IsNullOrWhiteSpace(body) ? "{}" : body);
+                if (!LooksLikeJson(body))
+                    return (false, false, null, null, DescribeHtml(response.StatusCode, body));
 
-                if (json["success"]?.Value<bool>() != true)
-                    return (false, null, null, json["message"]?.ToString() ?? "خطا در ساخت پرداخت نیکو");
+                JObject parsed;
+                try
+                {
+                    parsed = JObject.Parse(body);
+                }
+                catch (JsonException)
+                {
+                    return (false, false, null, null, DescribeHtml(response.StatusCode, body));
+                }
 
-                return (
-                    true,
-                    json["token"]?.ToString(),
-                    json["paymentUrl"]?.ToString(),
-                    "OK");
+                if (parsed["success"]?.Value<bool>() != true)
+                    return (true, false, null, null, parsed["message"]?.ToString() ?? "خطا در ساخت پرداخت نیکو");
+
+                return (true, true, parsed["token"]?.ToString(), parsed["paymentUrl"]?.ToString(), "OK");
             }
-            catch (Exception ex)
+
+            return (false, false, null, null, "هدایت درگاه نیکو بیش از حد تکرار شد");
+        }
+
+        private static SocketsHttpHandler CreateHandler(bool loopback)
+        {
+            var handler = new SocketsHttpHandler
             {
-                var detail = DescribeException(ex);
-                return (false, null, null, "ارتباط با درگاه نیکو برقرار نشد: " + detail);
+                UseProxy = false,
+                AllowAutoRedirect = false,
+                AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
+                SslOptions = new SslClientAuthenticationOptions
+                {
+                    EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13
+                }
+            };
+
+            if (!loopback)
+                return handler;
+
+            handler.ConnectCallback = async (context, token) =>
+            {
+                var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
+                try
+                {
+                    await socket.ConnectAsync(IPAddress.Loopback, context.DnsEndPoint.Port, token).ConfigureAwait(false);
+                    return new NetworkStream(socket, ownsSocket: true);
+                }
+                catch
+                {
+                    socket.Dispose();
+                    throw;
+                }
+            };
+            return handler;
+        }
+
+        private static bool IsRedirect(HttpStatusCode status)
+        {
+            var code = (int)status;
+            return code == 301 || code == 302 || code == 303 || code == 307 || code == 308;
+        }
+
+        private static string ResolveRedirect(string current, Uri location)
+        {
+            if (location == null || !Uri.TryCreate(current, UriKind.Absolute, out var currentUri))
+                return null;
+
+            var next = location.IsAbsoluteUri ? location : new Uri(currentUri, location);
+            if (next.Scheme != Uri.UriSchemeHttp && next.Scheme != Uri.UriSchemeHttps)
+                return null;
+
+            var sameHost = string.Equals(next.Host, currentUri.Host, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(next.Host, "nikoooo.ir", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(next.Host, "www.nikoooo.ir", StringComparison.OrdinalIgnoreCase);
+            return sameHost ? next.ToString() : null;
+        }
+
+        private static bool LooksLikeJson(string body)
+        {
+            if (string.IsNullOrWhiteSpace(body))
+                return false;
+            foreach (var ch in body.TrimStart('\uFEFF', ' ', '\t', '\r', '\n'))
+                return ch == '{' || ch == '[';
+            return false;
+        }
+
+        private static string DescribeHtml(HttpStatusCode status, string body)
+        {
+            var title = "";
+            if (!string.IsNullOrEmpty(body))
+            {
+                var match = Regex.Match(body, "<title>(.*?)</title>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+                if (match.Success)
+                    title = Regex.Replace(match.Groups[1].Value, "\\s+", " ").Trim();
             }
+
+            if (title.Length > 120)
+                title = title.Substring(0, 120);
+
+            var text = "پاسخ درگاه صفحه وب بود (" + (int)status + ")";
+            if (!string.IsNullOrEmpty(title))
+                text += ": " + title;
+            return text;
         }
 
         public bool VerifyCallback(

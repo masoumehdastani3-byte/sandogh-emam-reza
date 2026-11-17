@@ -42,7 +42,7 @@ namespace Services
                 ZarinPalService,
                 BaleService,
                 configuration,
-                new NikooPaymentHubClient(httpClientFactory, configuration)));
+                new NikooPaymentHubClient(configuration)));
             _lazyMemberPanelService = new Lazy<IMemberPanelService>(() => new MemberPanelService(repositoryManager, mapper));
             _lazyNotificationSchedulerService = new Lazy<INotificationSchedulerService>(() =>
                 new NotificationSchedulerService(repositoryManager, BaleService, LoanService, mapper, configuration));

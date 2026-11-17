@@ -81,6 +81,7 @@ namespace WebApplication
 
             services.AddTransient<ExceptionHandlingMiddleware>();
             services.AddHostedService<WebApplication.HostedServices.BaleUpdatePollingService>();
+            services.AddHostedService<WebApplication.HostedServices.ReminderLogCleanupService>();
             services.AddCors(options =>
             {
                 options.AddDefaultPolicy(policy =>

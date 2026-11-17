@@ -203,5 +203,14 @@ namespace Services
                     break;
             }
         }
+
+        public async Task<int> PurgeOldReminderLogsAsync(CancellationToken cancellationToken = default)
+        {
+            var cutoff = DateTime.Now.AddMonths(-3);
+            var count = await _repositoryManager.NotificationLogRepository.DeleteOlderThanAsync(cutoff, cancellationToken);
+            if (count > 0)
+                await _repositoryManager.UnitOfWork.SaveChangesAsync(cancellationToken);
+            return count;
+        }
     }
 }

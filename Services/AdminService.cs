@@ -264,70 +264,40 @@ namespace Services
             if (!await IsManagerAsync(dto.ManagerUserId, cancellationToken))
                 return ApiResultDto.Fail("فقط مدیر صندوق مجاز است");
 
-            var firstName = dto.FirstName?.Trim() ?? "";
-            var lastName = dto.LastName?.Trim() ?? "";
-            if (string.IsNullOrWhiteSpace(firstName) || string.IsNullOrWhiteSpace(lastName))
-                return ApiResultDto.Fail("نام و نام خانوادگی را بنویسید");
-            if (firstName.Length > 50 || lastName.Length > 50)
-                return ApiResultDto.Fail("نام یا نام خانوادگی بلندتر از حد مجاز است");
+            var person = ReadPerson(dto.FirstName, dto.LastName, dto.NationalCode, dto.Mobile);
+            if (person.Error != null)
+                return ApiResultDto.Fail(person.Error);
 
-            var nationalCode = PersianDateHelper.ToEnglishDigits(dto.NationalCode ?? "").Trim();
-            var mobile = PersianDateHelper.ToEnglishDigits(dto.Mobile ?? "").Trim();
-            if (!PersianDateHelper.IsValidNationalCode(nationalCode))
-                return ApiResultDto.Fail("کد ملی نامعتبر است");
-            if (!PersianDateHelper.IsValidMobile(mobile))
-                return ApiResultDto.Fail("شماره موبایل نامعتبر است. مثال: 09121234567");
-
-            var existingNational = await _repositoryManager.UserRepository.GetByNationalCodeAsync(nationalCode, cancellationToken);
+            var existingNational = await _repositoryManager.UserRepository.GetByNationalCodeAsync(person.NationalCode, cancellationToken);
             if (existingNational != null)
                 return ApiResultDto.Fail("این کد ملی قبلاً ثبت شده است");
 
-            var existingMobile = await _repositoryManager.UserRepository.GetByMobileAsync(mobile, cancellationToken);
+            var existingMobile = await _repositoryManager.UserRepository.GetByMobileAsync(person.Mobile, cancellationToken);
             if (existingMobile != null)
                 return ApiResultDto.Fail("این شماره موبایل قبلاً ثبت شده است");
 
             var roleType = (UserRoleType)dto.RoleType;
-            string roleName;
-            byte userStatus;
-            if (roleType == UserRoleType.Manager)
-            {
-                roleName = "مدیر صندوق";
-                userStatus = (byte)UserStatus.Manager;
-            }
-            else if (roleType == UserRoleType.Donator)
-            {
-                if (dto.MonthlyDonationAmount == null || dto.MonthlyDonationAmount <= 0)
-                    return ApiResultDto.Fail("مبلغ کمک ماهانه برای خیرین الزامی است");
-                roleName = "خیر";
-                userStatus = (byte)UserStatus.Donator;
-            }
-            else if (roleType == UserRoleType.Member)
-            {
-                roleName = "عضو / وام‌گیرنده";
-                userStatus = (byte)UserStatus.LoanApplicant;
-            }
-            else
-                return ApiResultDto.Fail("نوع حساب نامعتبر است");
-
-            var roles = (await _repositoryManager.UserRoleRepository.GetAllAsync(cancellationToken)).ToList();
-            var role = roles.FirstOrDefault(r => r.RoleName == roleName)
-                ?? roles.FirstOrDefault(r => r.RoleId == (int)roleType);
-            if (role == null)
-                return ApiResultDto.Fail("نقش کاربری در سیستم تعریف نشده است. یک‌بار برنامه را اجرا کنید تا نقش‌ها ساخته شوند.");
+            var rolePick = await FindAccountRoleAsync(roleType, dto.MonthlyDonationAmount, cancellationToken);
+            if (rolePick.Error != null)
+                return ApiResultDto.Fail(rolePick.Error);
+            var role = rolePick.Role;
+            var userStatus = roleType == UserRoleType.Manager
+                ? (byte)UserStatus.Manager
+                : roleType == UserRoleType.Donator
+                    ? (byte)UserStatus.Donator
+                    : (byte)UserStatus.LoanApplicant;
 
             var password = PersianDateHelper.GeneratePassword();
-            var note = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description.Trim();
-            if (note != null && note.Length > 500)
-                note = note.Substring(0, 500);
+            var note = TrimNote(dto.Description);
 
             var user = new User
             {
-                NationalCode = nationalCode,
-                Mobile = mobile,
-                FirstName = firstName,
-                LastName = lastName,
-                FullName = (firstName + " " + lastName).Trim(),
-                UserName = nationalCode,
+                NationalCode = person.NationalCode,
+                Mobile = person.Mobile,
+                FirstName = person.FirstName,
+                LastName = person.LastName,
+                FullName = (person.FirstName + " " + person.LastName).Trim(),
+                UserName = person.NationalCode,
                 Password = password,
                 RoleId = role.RoleId,
                 UserStatus = userStatus,
@@ -442,45 +412,21 @@ namespace Services
 
         private async Task<string> ApplyMemberProfileAsync(User user, AdminUpdateMemberDto dto, CancellationToken cancellationToken)
         {
-            var firstName = dto.FirstName?.Trim() ?? "";
-            var lastName = dto.LastName?.Trim() ?? "";
-            if (string.IsNullOrWhiteSpace(firstName) || string.IsNullOrWhiteSpace(lastName))
-                return "نام و نام خانوادگی را بنویسید";
-            if (firstName.Length > 50 || lastName.Length > 50)
-                return "نام یا نام خانوادگی بلندتر از حد مجاز است";
+            var person = ReadPerson(dto.FirstName, dto.LastName, dto.NationalCode, dto.Mobile);
+            if (person.Error != null)
+                return person.Error;
 
-            var nationalCode = PersianDateHelper.ToEnglishDigits(dto.NationalCode ?? "").Trim();
-            var mobile = PersianDateHelper.ToEnglishDigits(dto.Mobile ?? "").Trim();
-            if (!PersianDateHelper.IsValidNationalCode(nationalCode))
-                return "کد ملی نامعتبر است";
-            if (!PersianDateHelper.IsValidMobile(mobile))
-                return "شماره موبایل نامعتبر است. مثال: 09121234567";
-
-            var existingNational = await _repositoryManager.UserRepository.GetByNationalCodeAsync(nationalCode, cancellationToken);
+            var existingNational = await _repositoryManager.UserRepository.GetByNationalCodeAsync(person.NationalCode, cancellationToken);
             if (existingNational != null && existingNational.UserId != user.UserId)
                 return "این کد ملی برای عضو دیگری ثبت شده است";
 
-            var existingMobile = await _repositoryManager.UserRepository.GetByMobileAsync(mobile, cancellationToken);
+            var existingMobile = await _repositoryManager.UserRepository.GetByMobileAsync(person.Mobile, cancellationToken);
             if (existingMobile != null && existingMobile.UserId != user.UserId)
                 return "این شماره موبایل برای عضو دیگری ثبت شده است";
 
             var roleType = (UserRoleType)(dto.RoleType ?? (byte)UserRoleType.Member);
             if (dto.UserId == dto.ManagerUserId && roleType != UserRoleType.Manager)
                 return "نقش حساب خودتان را عوض نکنید";
-
-            string roleName;
-            if (roleType == UserRoleType.Manager)
-                roleName = "مدیر صندوق";
-            else if (roleType == UserRoleType.Donator)
-            {
-                if (dto.MonthlyDonationAmount == null || dto.MonthlyDonationAmount <= 0)
-                    return "مبلغ کمک ماهانه برای خیرین الزامی است";
-                roleName = "خیر";
-            }
-            else if (roleType == UserRoleType.Member)
-                roleName = "عضو / وام‌گیرنده";
-            else
-                return "نوع حساب نامعتبر است";
 
             var currentIsMember = !IsManagerUser(user) && user.RoleId != (int)UserRoleType.Donator
                 && (user.UserRole?.RoleName ?? "") != "خیر";
@@ -491,18 +437,17 @@ namespace Services
                     return "این عضو در صف وام یا وام باز است. تا تمام نشود نقش او عوض نمی‌شود";
             }
 
-            var roles = (await _repositoryManager.UserRoleRepository.GetAllAsync(cancellationToken)).ToList();
-            var role = roles.FirstOrDefault(r => r.RoleName == roleName)
-                ?? roles.FirstOrDefault(r => r.RoleId == (int)roleType);
-            if (role == null)
-                return "نقش کاربری در سیستم تعریف نشده است";
+            var rolePick = await FindAccountRoleAsync(roleType, dto.MonthlyDonationAmount, cancellationToken);
+            if (rolePick.Error != null)
+                return rolePick.Error;
+            var role = rolePick.Role;
 
-            user.FirstName = firstName;
-            user.LastName = lastName;
-            user.FullName = (firstName + " " + lastName).Trim();
-            user.NationalCode = nationalCode;
-            user.UserName = nationalCode;
-            user.Mobile = mobile;
+            user.FirstName = person.FirstName;
+            user.LastName = person.LastName;
+            user.FullName = (person.FirstName + " " + person.LastName).Trim();
+            user.NationalCode = person.NationalCode;
+            user.UserName = person.NationalCode;
+            user.Mobile = person.Mobile;
             user.RoleId = role.RoleId;
             user.UserRole = role;
             user.MonthlyDonationAmount = roleType == UserRoleType.Donator ? dto.MonthlyDonationAmount : null;
@@ -516,6 +461,75 @@ namespace Services
                 user.UserStatus = (byte)UserStatus.LoanApplicant;
 
             return null;
+        }
+
+        private static PersonDraft ReadPerson(string first, string last, string national, string mobile)
+        {
+            var draft = new PersonDraft
+            {
+                FirstName = first?.Trim() ?? "",
+                LastName = last?.Trim() ?? ""
+            };
+            if (string.IsNullOrWhiteSpace(draft.FirstName) || string.IsNullOrWhiteSpace(draft.LastName))
+            {
+                draft.Error = "نام و نام خانوادگی را بنویسید";
+                return draft;
+            }
+            if (draft.FirstName.Length > 50 || draft.LastName.Length > 50)
+            {
+                draft.Error = "نام یا نام خانوادگی بلندتر از حد مجاز است";
+                return draft;
+            }
+
+            draft.NationalCode = PersianDateHelper.ToEnglishDigits(national ?? "").Trim();
+            draft.Mobile = PersianDateHelper.ToEnglishDigits(mobile ?? "").Trim();
+            if (!PersianDateHelper.IsValidNationalCode(draft.NationalCode))
+            {
+                draft.Error = "کد ملی نامعتبر است";
+                return draft;
+            }
+            if (!PersianDateHelper.IsValidMobile(draft.Mobile))
+                draft.Error = "شماره موبایل نامعتبر است. مثال: 09121234567";
+            return draft;
+        }
+
+        private async Task<RoleDraft> FindAccountRoleAsync(UserRoleType roleType, long? donation, CancellationToken cancellationToken)
+        {
+            string roleName;
+            if (roleType == UserRoleType.Manager)
+                roleName = "مدیر صندوق";
+            else if (roleType == UserRoleType.Donator)
+            {
+                if (donation == null || donation <= 0)
+                    return new RoleDraft { Error = "مبلغ کمک ماهانه برای خیرین الزامی است" };
+                roleName = "خیر";
+            }
+            else if (roleType == UserRoleType.Member)
+                roleName = "عضو / وام‌گیرنده";
+            else
+                return new RoleDraft { Error = "نوع حساب نامعتبر است" };
+
+            var roles = (await _repositoryManager.UserRoleRepository.GetAllAsync(cancellationToken)).ToList();
+            var role = roles.FirstOrDefault(r => r.RoleName == roleName)
+                ?? roles.FirstOrDefault(r => r.RoleId == (int)roleType);
+            if (role == null)
+                return new RoleDraft { Error = "نقش کاربری در سیستم تعریف نشده است. یک‌بار برنامه را اجرا کنید تا نقش‌ها ساخته شوند." };
+            return new RoleDraft { Role = role };
+        }
+
+        private sealed class PersonDraft
+        {
+            public string FirstName { get; set; }
+            public string LastName { get; set; }
+            public string NationalCode { get; set; }
+            public string Mobile { get; set; }
+            public string Error { get; set; }
+        }
+
+        private sealed class RoleDraft
+        {
+            public UserRole Role { get; set; }
+            public string Error { get; set; }
         }
 
         private async Task<string> EnqueueBorrowerAsync(User user, int managerUserId, CancellationToken cancellationToken)

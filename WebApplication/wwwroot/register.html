@@ -4,20 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>عضویت | لبخند فردا</title>
-  <link rel="stylesheet" href="css/site.css?v=20261114b" />
+  <link rel="stylesheet" href="css/site.css?v=20261117f" />
   <link rel="icon" href="images/labkhand-logo.png" />
 </head>
 <body>
   <div class="page">
-    <div class="site-header">
-      <a class="brand-lockup" href="index.html">
-        <img src="images/labkhand-logo.png" alt="لوگو" />
-        <div class="titles">
-          <span>فرم عضویت</span>
-        </div>
-      </a>
-      <div class="nav"><a href="index.html"><i class="fas fa-home"></i>خانه</a><a href="login.html"><i class="fas fa-sign-in-alt"></i>ورود</a></div>
-    </div>
+    <div class="site-header" data-brand-header data-title="فرم عضویت" data-links="home,login"></div>
     <div class="card">
       <h2><i class="fas fa-user-plus icon-green"></i>فرم عضویت</h2>
       <p><i class="fas fa-info-circle icon-green"></i> اپلیکیشن <span class="bale-inline bale-inline--md"><img src="images/bale-logo.svg" alt="" class="bale-logo" />بله</span> لازم است. بعد از ثبت‌نام ربات را Start کنید. از آن به بعد مانده، قسط و درخواست وام را با دکمه‌های بله انجام می‌دهید و لازم نیست هر بار وارد سایت شوید.</p>
@@ -43,7 +35,7 @@
       <label><input type="checkbox" id="hasBaleApp" checked /> <span class="bale-inline bale-inline--md"><img src="images/bale-logo.svg" alt="" class="bale-logo" />اپلیکیشن بله</span> را نصب دارم (اجباری)</label>
       <button type="button" class="btn primary block" id="btnRegister"><i class="fas fa-check"></i>ثبت عضویت</button>
       <div id="msg" class="msg"></div>
-      <div id="baleBox" class="card" style="display:none;margin-top:1rem;box-shadow:none">
+      <div id="baleBox" class="card" style="display:none">
         <h2><span class="bale-inline bale-inline--md"><img src="images/bale-logo.svg" alt="" class="bale-logo" />اتصال به ربات بله</span></h2>
         <p id="baleHelp"></p>
         <p><a id="botLink" class="btn primary" target="_blank" rel="noopener"><img src="images/bale-logo.svg" alt="" class="bale-btn-logo" />باز کردن ربات بله و Start</a></p>
@@ -52,7 +44,7 @@
       </div>
     </div>
   </div>
-  <script src="js/app.js?v=20261116c"></script>
+  <script src="js/app.js?v=20261117f"></script>
   <script>
     GoodLoan.ready(function () {
       const G = GoodLoan;

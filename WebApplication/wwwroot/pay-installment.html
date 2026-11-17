@@ -4,44 +4,25 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>پرداخت قسط | لبخند فردا</title>
-  <link rel="stylesheet" href="css/site.css?v=20261114b" />
+  <link rel="stylesheet" href="css/site.css?v=20261117f" />
   <link rel="icon" href="images/labkhand-logo.png" />
-  <style>
-    .pay-summary {
-      margin: 1rem 0;
-      padding: 1rem;
-      border-radius: .85rem;
-      background: var(--brand-green-soft);
-      border-right: 3px solid var(--brand-green);
-      line-height: 1.9;
-    }
-    .pay-summary div { display: flex; justify-content: space-between; gap: 1rem; margin: .25rem 0; }
-    .pay-summary .total { font-weight: 700; color: var(--brand-green-deep); margin-top: .5rem; padding-top: .5rem; border-top: 1px dashed rgba(0,0,0,.12); }
-  </style>
 </head>
 <body>
   <div class="page">
-    <div class="site-header">
-      <a class="brand-lockup" href="index.html">
-        <img src="images/labkhand-logo.png" alt="لوگو" />
-        <div class="titles">
-          <span>پرداخت قسط</span>
-        </div>
-      </a>
-    </div>
+    <div class="site-header" data-brand-header data-title="پرداخت قسط"></div>
 
     <div class="card">
       <h2><i class="fas fa-credit-card icon-green"></i>پرداخت قسط</h2>
-      <p class="muted-text" style="margin-top:0">دکمه را بزنید تا صفحه بانک باز شود. لازم نیست وارد سایت شوید.</p>
+      <p class="muted-text">دکمه را بزنید تا صفحه بانک باز شود. لازم نیست وارد سایت شوید.</p>
       <div id="msg" class="msg"></div>
       <div id="content" style="display:none">
         <div class="pay-summary" id="summary"></div>
-        <button type="button" class="btn primary block" id="btnPay" style="min-height:56px;font-size:1.15rem"><i class="fas fa-university"></i>رفتن به صفحه بانک</button>
+        <button type="button" class="btn primary block" id="btnPay"><i class="fas fa-university"></i>رفتن به صفحه بانک</button>
       </div>
-      <p class="muted-text" style="margin-top:1rem">بعد از پرداخت، نتیجه در بله می‌آید.</p>
+      <p class="muted-text mt-1">بعد از پرداخت، نتیجه در بله می‌آید.</p>
     </div>
   </div>
-  <script src="js/app.js?v=20261116c"></script>
+  <script src="js/app.js?v=20261117f"></script>
   <script>
     GoodLoan.ready(async function () {
       const G = GoodLoan;

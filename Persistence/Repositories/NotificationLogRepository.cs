@@ -1,6 +1,7 @@
 using Domain.Entities;
 using Domain.Repositories;
 using Microsoft.EntityFrameworkCore;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -22,6 +23,18 @@ namespace Persistence.Repositories
             await _dbContext.NotificationLogs.Where(a => a.UserId == userId)
                 .OrderByDescending(a => a.CreateDate)
                 .ToListAsync(cancellationToken);
+
+        public async Task<int> DeleteOlderThanAsync(DateTime cutoff, CancellationToken cancellationToken = default)
+        {
+            var old = await _dbContext.NotificationLogs
+                .Where(a => (a.SentDate ?? a.CreateDate) < cutoff)
+                .ToListAsync(cancellationToken);
+            if (old.Count == 0)
+                return 0;
+
+            _dbContext.NotificationLogs.RemoveRange(old);
+            return old.Count;
+        }
     }
 
     internal sealed class FundTransactionRepository : IFundTransactionRepository

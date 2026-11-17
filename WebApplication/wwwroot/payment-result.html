@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>نتیجه پرداخت | لبخند فردا</title>
-  <link rel="stylesheet" href="/css/site.css?v=20261114b" />
+  <link rel="stylesheet" href="/css/site.css?v=20261117f" />
   <link rel="icon" href="/images/labkhand-logo.png" />
 </head>
 <body>
@@ -29,7 +29,7 @@
     const title = document.getElementById('title');
     title.innerHTML = ok
       ? '<i class="fas fa-check-circle icon-green"></i>پرداخت موفق'
-      : '<i class="fas fa-times-circle" style="color:#b42318"></i>پرداخت ناموفق';
+      : '<i class="fas fa-times-circle icon-danger"></i>پرداخت ناموفق';
     document.getElementById('msg').textContent = p.get('msg') || '';
   </script>
 </body>

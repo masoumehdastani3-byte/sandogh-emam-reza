@@ -78,6 +78,7 @@ namespace Services.Abstractions
     {
         Task<SendRemindersResultDto> SendMonthlyRemindersAsync(CancellationToken cancellationToken = default);
         Task ProcessLoanQueueAsync(CancellationToken cancellationToken = default);
+        Task<int> PurgeOldReminderLogsAsync(CancellationToken cancellationToken = default);
     }
 
     public interface IAdminService

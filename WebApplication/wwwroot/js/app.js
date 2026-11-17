@@ -13,20 +13,129 @@ window.GoodLoan = (function () {
 
 
   function ready(fn) {
-
-    if (document.readyState === 'loading') {
-
-      document.addEventListener('DOMContentLoaded', fn);
-
-    } else {
-
+    function start() {
+      initPageChrome();
       fn();
-
     }
 
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', start);
+    } else {
+      start();
+    }
   }
 
 
+
+  var BRAND_LINKS = {
+    home: { href: 'index.html', icon: 'fa-home', label: 'خانه' },
+    panel: { href: 'panel.html', icon: 'fa-th-large', label: 'پنل عضو' },
+    login: { href: 'login.html', icon: 'fa-sign-in-alt', label: 'ورود' }
+  };
+
+  function roleTypeSelect(id) {
+    return '<label>نوع عضویت</label><select id="' + id + '">' +
+      '<option value="2">وام‌گیرنده / عضو</option>' +
+      '<option value="3">خیر (کمک‌کننده)</option>' +
+      '<option value="1">مدیر صندوق</option></select>';
+  }
+
+  function textField(id, label, extra) {
+    return '<label>' + label + '</label><input id="' + id + '"' + (extra || '') + ' />';
+  }
+
+  function donationField(prefix) {
+    return '<div id="' + prefix + 'DonationBox" style="display:none">' +
+      '<label>مبلغ کمک ماهانه (ریال)</label>' +
+      '<input id="' + prefix + 'Donation" type="text" class="amount-input" inputmode="numeric" placeholder="مثال: 500,000" />' +
+      '</div>';
+  }
+
+  function baleCopyControl(buttonId, urlId) {
+    return '<p class="muted-text bale-link-hint">لینک بله. با زدن روی آن کپی می‌شود.</p>' +
+      '<p class="bale-btn-line"><button type="button" class="btn primary" id="' + buttonId + '" style="display:none">' +
+      '<img src="images/bale-logo.svg" alt="" class="bale-btn-logo" /><span class="bot-link-label">کپی لینک استارت ربات بله</span></button></p>' +
+      '<p id="' + urlId + '" dir="ltr" class="muted-text copy-url" title="برای کپی بزنید"></p>';
+  }
+
+  function memberCreatePaneHtml() {
+    return '<div id="newMemberMsg" class="msg"></div>' +
+      '<div id="newMemberResult" class="last-send-box" style="display:none">' +
+        '<h3 id="newMemberResultTitle">اطلاعات ورود</h3>' +
+        '<p class="muted-text">این رمز را به عضو بدهید. نام کاربری همان کد ملی است. با زدن روی لینک بله، آدرس کپی می‌شود.</p>' +
+        '<p>نام: <b id="newMemberResultName"></b></p>' +
+        '<p>کد ملی: <b dir="ltr" id="newMemberResultNational"></b></p>' +
+        '<p>رمز عبور: <b dir="ltr" id="newMemberResultPassword"></b></p>' +
+        '<p><button type="button" class="btn primary" id="newMemberBotLink" style="display:none"><img src="images/bale-logo.svg" alt="" class="bale-btn-logo" /><span class="bot-link-label">کپی لینک استارت ربات بله</span></button></p>' +
+        '<p id="newMemberBotUrl" dir="ltr" class="muted-text copy-url" title="برای کپی بزنید"></p>' +
+      '</div>' +
+      '<div class="member-sheet-grid"><div>' +
+        textField('newMemberFirstName', 'نام', ' maxlength="50"') +
+        textField('newMemberLastName', 'نام خانوادگی', ' maxlength="50"') +
+      '</div><div>' +
+        textField('newMemberNationalCode', 'کد ملی', ' maxlength="10" inputmode="numeric" placeholder="۱۰ رقم"') +
+        textField('newMemberMobile', 'شماره موبایل', ' maxlength="11" inputmode="numeric" placeholder="09xxxxxxxxx"') +
+      '</div></div>' +
+      '<div class="member-sheet-grid"><div>' + roleTypeSelect('newMemberRoleType') + '</div>' +
+        donationField('newMember') +
+      '</div>' +
+      textField('newMemberNote', 'توضیح مدیر (اختیاری)', ' maxlength="500" placeholder="یادداشت داخلی؛ عضو آن را نمی‌بیند"') +
+      '<div class="member-sheet-actions"><button type="button" class="btn primary" id="btnCreateMember"><i class="fas fa-user-plus"></i>ثبت</button></div>';
+  }
+
+  function memberEditPaneHtml() {
+    return '<input type="hidden" id="memberEditUserId" />' +
+      '<div id="memberEditMsg" class="msg"></div>' +
+      '<div class="member-sheet-grid"><div>' +
+        textField('memberEditFirstName', 'نام', ' maxlength="50"') +
+        textField('memberEditLastName', 'نام خانوادگی', ' maxlength="50"') +
+        textField('memberEditNationalCode', 'کد ملی', ' maxlength="10" inputmode="numeric"') +
+        textField('memberEditMobile', 'شماره موبایل', ' maxlength="11" inputmode="numeric"') +
+      '</div><div>' +
+        roleTypeSelect('memberEditRoleType') +
+        donationField('memberEdit') +
+        textField('memberEditNote', 'توضیح مدیر (اختیاری)', ' maxlength="500"') +
+        baleCopyControl('memberEditBotLink', 'memberEditBotUrl') +
+      '</div></div>' +
+      '<div class="member-sheet-actions">' +
+        '<button type="button" class="btn primary" id="btnSaveMember"><i class="fas fa-save"></i>ذخیره تغییرات</button>' +
+        '<button type="button" class="btn dark" id="btnCancelMemberEdit">انصراف</button>' +
+      '</div>';
+  }
+
+  function initPageChrome() {
+    document.querySelectorAll('[data-brand-header]').forEach(function (host) {
+      if (host.getAttribute('data-chrome-ready')) return;
+      host.setAttribute('data-chrome-ready', '1');
+      host.classList.add('site-header');
+      var title = host.getAttribute('data-title') || '';
+      var nav = (host.getAttribute('data-links') || '').split(',').map(function (key) {
+        var item = BRAND_LINKS[key.trim()];
+        return item ? '<a href="' + item.href + '"><i class="fas ' + item.icon + '"></i>' + item.label + '</a>' : '';
+      }).join('');
+      host.innerHTML = '<a class="brand-lockup" href="index.html"><img src="images/labkhand-logo.png" alt="لوگو" />' +
+        '<div class="titles"><span>' + title + '</span></div></a>' +
+        (nav ? '<div class="nav">' + nav + '</div>' : '');
+    });
+
+    document.querySelectorAll('[data-access-denied]').forEach(function (host) {
+      if (host.getAttribute('data-chrome-ready')) return;
+      host.setAttribute('data-chrome-ready', '1');
+      host.classList.add('card');
+      var back = host.getAttribute('data-return') || 'admin.html';
+      host.innerHTML = '<h2><i class="fas fa-lock icon-green"></i>دسترسی مجاز نیست</h2>' +
+        '<p>این صفحه فقط برای مدیر صندوق است.</p>' +
+        '<a class="btn primary" href="login.html?return=' + encodeURIComponent(back) + '">ورود مدیر</a>';
+    });
+
+    var createPane = document.getElementById('memberCreatePane');
+    if (createPane && !createPane.getAttribute('data-mounted')) {
+      createPane.setAttribute('data-mounted', '1');
+      createPane.innerHTML = memberCreatePaneHtml();
+      var editPane = document.getElementById('memberEditBox');
+      if (editPane) editPane.innerHTML = memberEditPaneHtml();
+    }
+  }
 
   function pick(obj, key) {
 
@@ -228,12 +337,20 @@ window.GoodLoan = (function () {
       '-';
   }
 
+  function loanActionButtons(loanId, compact) {
+    var extra = compact ? ' btn-compact-table' : '';
+    return '<button type="button" class="btn dark btn-set-amount' + extra + '" data-id="' + loanId + '">تعیین مبلغ</button> ' +
+      '<button type="button" class="btn primary btn-disburse' + extra + '" data-id="' + loanId + '">وام را بده</button> ' +
+      '<button type="button" class="btn dark btn-reject' + extra + '" data-id="' + loanId + '">رد کن</button>';
+  }
+
   function renderLoanTableRow(loan, options) {
     options = options || {};
     const loanId = pick(loan, 'loanId');
     const user = pick(loan, 'user');
+    const queueCell = '<td>' + (pick(loan, 'queuePosition') || '-') + '</td>';
     let html = '<tr>';
-    if (options.showQueue) html += '<td>' + (pick(loan, 'queuePosition') || '-') + '</td>';
+    if (options.showQueue && !options.queueLast) html += queueCell;
     html += '<td>' + loanId + '</td>';
     if (options.showMember) html += '<td>' + (pick(user, 'fullName') || pick(loan, 'userId') || '') + '</td>';
     var loanAmount = Number(pick(loan, 'loanAmount')) || 0;
@@ -241,17 +358,15 @@ window.GoodLoan = (function () {
     html += '<td>' + shamsiDate(loan, 'requestDate_Shamsi', 'requestDate') + '</td>';
     if (options.showPaymentDate) html += '<td>' + shamsiDate(loan, 'paymentDate_Shamsi', 'paymentDate') + '</td>';
     if (options.showStatus) html += '<td>' + loanStatusText(loan) + '</td>';
-    if (options.showActions || options.showMove) {
+    if (options.queueLast) html += queueCell;
+    if (options.showActions || options.showMove || options.showEmptyActions) {
       html += '<td class="table-actions queue-actions">';
       if (options.showMove) {
         html += '<button type="button" class="btn dark btn-queue-move" data-id="' + loanId + '" data-dir="-1">جلوتر</button>';
         html += '<button type="button" class="btn dark btn-queue-move" data-id="' + loanId + '" data-dir="1">عقب‌تر</button>';
       }
-      if (options.showActions) {
-        html += '<button type="button" class="btn dark btn-set-amount" data-id="' + loanId + '">تعیین مبلغ</button>';
-        html += '<button type="button" class="btn primary btn-disburse" data-id="' + loanId + '">وام را بده</button>';
-        html += '<button type="button" class="btn dark btn-reject" data-id="' + loanId + '">رد کن</button>';
-      }
+      if (options.showActions) html += loanActionButtons(loanId, options.compactActions);
+      else if (options.showEmptyActions) html += '<span class="muted-text">—</span>';
       html += '</td>';
     }
     html += '</tr>';
@@ -642,23 +757,35 @@ window.GoodLoan = (function () {
   }
 
   var ADMIN_NAV_ITEMS = [
-    { heading: 'کار روزانه' },
+    { heading: 'وام' },
     { href: 'admin.html?tab=tab-queue', icon: 'fa-stream', label: 'صف وام', match: function (p, t) { return p === 'admin' && (!t || t === 'tab-queue'); } },
-    { href: 'admin.html?tab=tab-manage', icon: 'fa-cogs', label: 'کارهای صندوق', match: function (p, t) { return p === 'admin' && t === 'tab-manage'; } },
-    { href: 'admin.html?tab=tab-installments-report', icon: 'fa-calendar-exclamation', label: 'قسط‌های نزدیک', match: function (p, t) { return p === 'admin' && t === 'tab-installments-report'; } },
     { href: 'admin.html?tab=tab-loans', icon: 'fa-file-invoice', label: 'همه وام‌ها', match: function (p, t) { return p === 'admin' && t === 'tab-loans'; } },
     { href: 'admin.html?tab=tab-past-loan', icon: 'fa-history', label: 'وام قبلی', match: function (p, t) { return p === 'admin' && t === 'tab-past-loan'; } },
-    { href: 'admin.html?tab=tab-members', icon: 'fa-users', label: 'اعضا', match: function (p, t) { return p === 'admin' && t === 'tab-members'; } },
-    { heading: 'پول صندوق' },
-    { href: 'admin.html?tab=tab-fund-deposit', icon: 'fa-piggy-bank', label: 'ریختن پول', match: function (p, t) { return p === 'admin' && t === 'tab-fund-deposit'; } },
+    { href: 'admin.html?tab=tab-installments-report', icon: 'fa-calendar-exclamation', label: 'اقساط', match: function (p, t) { return p === 'admin' && t === 'tab-installments-report'; } },
+    { heading: 'صندوق' },
+    { href: 'admin.html?tab=tab-manage', icon: 'fa-cogs', label: 'کارهای صندوق', match: function (p, t) { return p === 'admin' && t === 'tab-manage'; } },
+    { href: 'admin.html?tab=tab-fund-deposit', icon: 'fa-piggy-bank', label: 'شارژ صندوق', match: function (p, t) { return p === 'admin' && t === 'tab-fund-deposit'; } },
     { href: 'admin.html?tab=tab-deposits', icon: 'fa-money-check-alt', label: 'واریزی‌ها', match: function (p, t) { return p === 'admin' && t === 'tab-deposits'; } },
-    { href: 'admin.html?tab=tab-ledger', icon: 'fa-book', label: 'حساب صندوق', match: function (p, t) { return p === 'admin' && t === 'tab-ledger'; } },
-    { heading: 'سایر' },
+    { href: 'admin.html?tab=tab-ledger', icon: 'fa-book', label: 'دفتر صندوق', match: function (p, t) { return p === 'admin' && t === 'tab-ledger'; } },
+    { href: 'reports.html', icon: 'fa-chart-pie', label: 'گزارش', match: function (p) { return p === 'reports'; } },
+    { heading: 'افراد' },
+    { href: 'admin.html?tab=tab-members', icon: 'fa-users', label: 'اعضا', match: function (p, t) { return p === 'admin' && t === 'tab-members'; } },
+    { href: 'roles.html', icon: 'fa-users-cog', label: 'نقش‌ها', match: function (p) { return p === 'roles'; } },
     { href: 'admin.html?tab=tab-reminders', icon: 'fa-bell', label: 'پیام‌های بله', match: function (p, t) { return p === 'admin' && t === 'tab-reminders'; } },
+    { heading: 'سیستم' },
     { href: 'admin.html?tab=tab-settings', icon: 'fa-sliders-h', label: 'تنظیمات', match: function (p, t) { return p === 'admin' && t === 'tab-settings'; } },
-    { href: 'reports.html', icon: 'fa-chart-pie', label: 'گزارش مدیریتی', match: function (p) { return p === 'reports'; } },
-    { href: 'roles.html', icon: 'fa-users-cog', label: 'نقش\u200cها', match: function (p) { return p === 'roles'; } }
+    { href: 'panel.html', icon: 'fa-th-large', label: 'پنل عضو', quiet: true, match: function (p) { return p === 'panel'; } },
+    { href: 'index.html', icon: 'fa-home', label: 'خانه', quiet: true, match: function () { return false; } }
   ];
+
+  function adminPageName(file) {
+    file = (file || '').toLowerCase();
+    if (file.indexOf('report') >= 0) return 'reports';
+    if (file.indexOf('role') >= 0) return 'roles';
+    if (file.indexOf('panel') >= 0) return 'panel';
+    if (file.indexOf('admin') >= 0) return 'admin';
+    return '';
+  }
 
   function renderAdminNav(containerId, options) {
     options = options || {};
@@ -671,16 +798,46 @@ window.GoodLoan = (function () {
     html += '<button type="button" class="admin-nav-backdrop" aria-label="بستن منو"></button>';
     html += '<nav class="admin-nav" aria-label="منوی مدیر">';
     html += '<div class="admin-nav-title"><span>منوی مدیر</span><button type="button" class="admin-nav-close" aria-label="بستن"><i class="fas fa-times"></i></button></div>';
+    var seenHeading = false;
     ADMIN_NAV_ITEMS.forEach(function (item) {
       if (item.heading) {
-        html += '<div class="admin-nav-heading">' + item.heading + '</div>';
+        html += '<div class="admin-nav-heading' + (seenHeading ? '' : ' is-first') + '">' + item.heading + '</div>';
+        seenHeading = true;
         return;
       }
       var active = item.match(page, tab) ? ' active' : '';
-      html += '<a href="' + item.href + '" class="' + active.trim() + '"><i class="fas ' + item.icon + '"></i><span>' + item.label + '</span></a>';
+      var quiet = item.quiet ? ' is-quiet' : '';
+      html += '<a href="' + item.href + '" class="' + (active + quiet).trim() + '"><i class="fas ' + item.icon + '"></i><span>' + item.label + '</span></a>';
     });
+    if (page === 'panel') {
+      html += '<a href="#" class="is-quiet" data-admin-logout><i class="fas fa-sign-out-alt"></i><span>خروج</span></a>';
+    }
     html += '</nav>';
     container.innerHTML = html;
+    document.body.classList.add('has-admin-nav');
+    document.body.classList.remove('has-mobile-nav');
+    var mobileNav = document.querySelector('.mobile-bottom-nav');
+    if (mobileNav) mobileNav.remove();
+    if (container.parentElement !== document.body) document.body.prepend(container);
+
+    function currentFile() {
+      return (location.pathname.split('/').pop() || 'admin.html').toLowerCase();
+    }
+
+    function syncActive() {
+      var file = currentFile();
+      var pageName = adminPageName(file);
+      var tabName = new URLSearchParams(location.search).get('tab') || (pageName === 'admin' ? 'tab-queue' : '');
+      var links = container.querySelectorAll('.admin-nav a:not([data-admin-logout])');
+      var index = 0;
+      ADMIN_NAV_ITEMS.forEach(function (item) {
+        if (item.heading) return;
+        var link = links[index++];
+        if (link) link.classList.toggle('active', !!item.match(pageName, tabName));
+      });
+    }
+
+    syncActive();
 
     function setOpen(open) {
       container.classList.toggle('is-open', open);
@@ -695,8 +852,48 @@ window.GoodLoan = (function () {
     container.querySelector('.admin-nav-backdrop').addEventListener('click', function () { setOpen(false); });
     container.querySelector('.admin-nav-close').addEventListener('click', function () { setOpen(false); });
     container.querySelector('.admin-nav').addEventListener('click', function (e) {
-      if (e.target.closest('a') && window.matchMedia('(max-width: 1099px)').matches) setOpen(false);
+      var link = e.target.closest('a');
+      if (!link) return;
+      if (link.hasAttribute('data-admin-logout')) {
+        e.preventDefault();
+        logout();
+        return;
+      }
+      if (window.matchMedia('(max-width: 1099px)').matches) setOpen(false);
+
+      var url;
+      try { url = new URL(link.href, location.href); } catch (err) { return; }
+      var targetFile = (url.pathname.split('/').pop() || '').toLowerCase();
+      var tab = url.searchParams.get('tab');
+      if (targetFile === currentFile() && tab && document.getElementById(tab)) {
+        e.preventDefault();
+        history.pushState(null, '', url.pathname + url.search);
+        openTab(tab);
+        syncActive();
+        window.scrollTo(0, 0);
+      }
     });
+
+    if (!window.__adminNavPopBound) {
+      window.__adminNavPopBound = true;
+      window.addEventListener('popstate', function () {
+        var tab = new URLSearchParams(location.search).get('tab');
+        if (tab && document.getElementById(tab)) openTab(tab);
+        var bar = document.getElementById('adminNavBar');
+        if (bar) {
+          var file = (location.pathname.split('/').pop() || 'admin.html').toLowerCase();
+          var pageName = adminPageName(file);
+          var tabName = tab || (pageName === 'admin' ? 'tab-queue' : '');
+          var links = bar.querySelectorAll('.admin-nav a:not([data-admin-logout])');
+          var index = 0;
+          ADMIN_NAV_ITEMS.forEach(function (item) {
+            if (item.heading) return;
+            var link = links[index++];
+            if (link) link.classList.toggle('active', !!item.match(pageName, tabName));
+          });
+        }
+      });
+    }
   }
 
   function initStatsCollapse(selector) {
@@ -766,6 +963,7 @@ window.GoodLoan = (function () {
     var page = (location.pathname.split('/').pop() || 'index.html').toLowerCase();
     // صفحات تمام‌صفحه بدون منوی پایین (مخصوصاً WebView بله)
     if (page === 'admin.html' || page === 'reports.html' || page === 'roles.html') return;
+    if (page === 'panel.html' && (isManagerRole(localStorage.getItem('gl_roleId'), localStorage.getItem('gl_roleName'), localStorage.getItem('gl_userStatus')) || isMultiRoleAccount())) return;
     if (page === 'login.html' || page === 'register.html') return;
     if (page === 'pay-installment.html' || page === 'payment-result.html') return;
 
@@ -852,15 +1050,91 @@ window.GoodLoan = (function () {
     return text;
   }
 
-  function filterGlTable(table, query) {
-    const q = (query || '').trim().toLowerCase();
+  function glPageSize(table) {
+    const size = Number(table.dataset.glPageSize || 10);
+    return size > 0 ? size : 10;
+  }
+
+  function glMatchedRows(table) {
+    const wrap = table.closest('.gl-table-wrap');
+    const searchInput = wrap && wrap.querySelector('.gl-table-search');
+    const q = searchInput ? searchInput.value.trim().toLowerCase() : '';
+    const matched = [];
     table.querySelectorAll('tbody tr').forEach(function (tr) {
       const text = tr.textContent.replace(/\s+/g, ' ').toLowerCase();
-      tr.style.display = !q || text.indexOf(q) >= 0 ? '' : 'none';
+      const ok = !q || text.indexOf(q) >= 0;
+      tr.dataset.glMatch = ok ? '1' : '0';
+      if (ok) matched.push(tr);
+    });
+    return matched;
+  }
+
+  function renderPageNumbers(container, page, pageCount) {
+    container.innerHTML = '';
+    if (pageCount < 1) return;
+    const windowSize = 5;
+    let start = Math.max(1, page - 2);
+    let end = Math.min(pageCount, start + windowSize - 1);
+    start = Math.max(1, end - windowSize + 1);
+    const nums = [];
+    if (start > 1) nums.push(1);
+    if (start > 2) nums.push('…');
+    for (let i = start; i <= end; i++) nums.push(i);
+    if (end < pageCount - 1) nums.push('…');
+    if (end < pageCount) nums.push(pageCount);
+    nums.forEach(function (n) {
+      if (n === '…') {
+        const span = document.createElement('span');
+        span.className = 'gl-page-gap';
+        span.textContent = '…';
+        container.appendChild(span);
+        return;
+      }
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'gl-page-num' + (n === page ? ' active' : '');
+      btn.textContent = String(n);
+      btn.dataset.page = String(n);
+      container.appendChild(btn);
     });
   }
 
-  function sortGlTable(table, colIndex, dir) {
+  function applyGlTableView(table) {
+    const matched = glMatchedRows(table);
+    const pageSize = glPageSize(table);
+    const pageCount = Math.max(1, Math.ceil(matched.length / pageSize) || 1);
+    let page = Number(table.dataset.glPage || 1);
+    if (page > pageCount) page = pageCount;
+    if (page < 1) page = 1;
+    table.dataset.glPage = String(page);
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize;
+    table.querySelectorAll('tbody tr').forEach(function (tr) {
+      tr.style.display = 'none';
+    });
+    matched.forEach(function (tr, index) {
+      tr.style.display = index >= start && index < end ? '' : 'none';
+    });
+    const wrap = table.closest('.gl-table-wrap');
+    const pager = wrap && wrap.querySelector('.gl-table-pager');
+    if (!pager) return;
+    const from = matched.length ? start + 1 : 0;
+    const to = Math.min(matched.length, end);
+    const info = pager.querySelector('.gl-page-info');
+    info.textContent = matched.length
+      ? ('نمایش ' + formatNumber(from) + ' تا ' + formatNumber(to) + ' از ' + formatNumber(matched.length))
+      : 'موردی برای نمایش نیست';
+    pager.querySelector('.gl-page-prev').disabled = page <= 1 || !matched.length;
+    pager.querySelector('.gl-page-next').disabled = page >= pageCount || !matched.length;
+    renderPageNumbers(pager.querySelector('.gl-page-nums'), matched.length ? page : 1, matched.length ? pageCount : 1);
+  }
+
+  function filterGlTable(table) {
+    table.dataset.glPage = '1';
+    applyGlTableView(table);
+  }
+
+  function sortGlTable(table, colIndex, dir, keepPage) {
     const tbody = table.querySelector('tbody');
     if (!tbody) return;
     const rows = Array.from(tbody.querySelectorAll('tr'));
@@ -875,6 +1149,8 @@ window.GoodLoan = (function () {
     rows.forEach(function (r) { tbody.appendChild(r); });
     table.dataset.glSortCol = String(colIndex);
     table.dataset.glSortDir = dir;
+    if (!keepPage) table.dataset.glPage = '1';
+    applyGlTableView(table);
     table.querySelectorAll('thead th').forEach(function (th, i) {
       th.classList.toggle('sorted-asc', i === colIndex && dir === 'asc');
       th.classList.toggle('sorted-desc', i === colIndex && dir === 'desc');
@@ -890,7 +1166,8 @@ window.GoodLoan = (function () {
       else n.remove();
     });
     clone.querySelectorAll('tbody tr').forEach(function (tr) {
-      if (tr.style.display === 'none') tr.remove();
+      if (tr.dataset.glMatch === '0') tr.remove();
+      else tr.style.display = '';
     });
     const w = window.open('', '_blank');
     if (!w) return;
@@ -910,7 +1187,7 @@ window.GoodLoan = (function () {
     });
     lines.push(headers.join(','));
     table.querySelectorAll('tbody tr').forEach(function (tr) {
-      if (tr.style.display === 'none') return;
+      if (tr.dataset.glMatch === '0') return;
       const cells = Array.from(tr.querySelectorAll('td')).map(function (td) {
         return '"' + cellText(td).replace(/"/g, '""') + '"';
       });
@@ -963,14 +1240,54 @@ window.GoodLoan = (function () {
 
     const scroll = document.createElement('div');
     scroll.className = 'gl-table-scroll';
+
+    const pager = document.createElement('div');
+    pager.className = 'gl-table-pager';
+    pager.innerHTML =
+      '<label class="gl-page-size">تعداد در صفحه ' +
+      '<select class="gl-page-size-select">' +
+      '<option value="10" selected>10</option>' +
+      '<option value="20">20</option>' +
+      '<option value="50">50</option>' +
+      '<option value="100">100</option>' +
+      '</select></label>' +
+      '<div class="gl-page-info"></div>' +
+      '<div class="gl-page-nav">' +
+      '<button type="button" class="gl-page-prev">قبلی</button>' +
+      '<div class="gl-page-nums"></div>' +
+      '<button type="button" class="gl-page-next">بعدی</button>' +
+      '</div>';
+
     wrap.appendChild(toolbar);
     wrap.appendChild(scroll);
+    wrap.appendChild(pager);
     scroll.appendChild(table);
+    table.dataset.glPageSize = '10';
+    table.dataset.glPage = '1';
 
     const searchInput = toolbar.querySelector('.gl-table-search');
-    searchInput.addEventListener('input', function () { filterGlTable(table, searchInput.value); });
+    searchInput.addEventListener('input', function () { filterGlTable(table); });
     toolbar.querySelector('.gl-table-print').addEventListener('click', function () { printGlTable(table); });
     toolbar.querySelector('.gl-table-excel').addEventListener('click', function () { exportGlTableExcel(table); });
+    pager.querySelector('.gl-page-size-select').addEventListener('change', function (e) {
+      table.dataset.glPageSize = e.target.value || '10';
+      table.dataset.glPage = '1';
+      applyGlTableView(table);
+    });
+    pager.querySelector('.gl-page-prev').addEventListener('click', function () {
+      table.dataset.glPage = String(Math.max(1, Number(table.dataset.glPage || 1) - 1));
+      applyGlTableView(table);
+    });
+    pager.querySelector('.gl-page-next').addEventListener('click', function () {
+      table.dataset.glPage = String(Number(table.dataset.glPage || 1) + 1);
+      applyGlTableView(table);
+    });
+    pager.querySelector('.gl-page-nums').addEventListener('click', function (e) {
+      const btn = e.target.closest('.gl-page-num');
+      if (!btn) return;
+      table.dataset.glPage = btn.dataset.page;
+      applyGlTableView(table);
+    });
 
     table.querySelectorAll('thead th').forEach(function (th, index) {
       if (/عملیات/i.test(th.textContent)) return;
@@ -982,6 +1299,7 @@ window.GoodLoan = (function () {
     });
 
     applyMobileTableLabels(table);
+    applyGlTableView(table);
     return table;
   }
 
@@ -1000,12 +1318,10 @@ window.GoodLoan = (function () {
       enhanceDataTable(table);
       return;
     }
-    const wrap = table.closest('.gl-table-wrap');
-    const searchInput = wrap && wrap.querySelector('.gl-table-search');
-    if (searchInput && searchInput.value) filterGlTable(table, searchInput.value);
     if (table.dataset.glSortCol != null) {
-      sortGlTable(table, Number(table.dataset.glSortCol), table.dataset.glSortDir || 'asc');
+      sortGlTable(table, Number(table.dataset.glSortCol), table.dataset.glSortDir || 'asc', true);
     }
+    applyGlTableView(table);
     applyMobileTableLabels(table);
   }
 

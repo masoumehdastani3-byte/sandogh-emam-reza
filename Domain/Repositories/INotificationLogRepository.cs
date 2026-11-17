@@ -1,4 +1,5 @@
 using Domain.Entities;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,6 +11,7 @@ namespace Domain.Repositories
         void Insert(NotificationLog notification);
         Task<IEnumerable<NotificationLog>> GetByUserIdAsync(int userId, CancellationToken cancellationToken = default);
         Task<IEnumerable<NotificationLog>> GetAllAsync(CancellationToken cancellationToken = default);
+        Task<int> DeleteOlderThanAsync(DateTime cutoff, CancellationToken cancellationToken = default);
     }
 
     public interface IFundTransactionRepository
